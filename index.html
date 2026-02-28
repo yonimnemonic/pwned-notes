@@ -1,457 +1,530 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>pwned-notes — HTB Writeups</title>
-<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
-<style>
-  :root {
-    --bg: #060a10;
-    --bg2: #0c1018;
-    --card: #111827;
-    --card-hover: #162032;
-    --card-border: #1e293b;
-    --green: #22c55e;
-    --green-dim: rgba(34,197,94,0.12);
-    --red: #ef4444;
-    --red-dim: rgba(239,68,68,0.1);
-    --blue: #3b82f6;
-    --yellow: #eab308;
-    --orange: #f97316;
-    --purple: #a855f7;
-    --cyan: #06b6d4;
-    --text: #e2e8f0;
-    --text-dim: #64748b;
-    --text-mid: #94a3b8;
-    --mono: 'JetBrains Mono', monospace;
-    --sans: 'Space Grotesk', sans-serif;
-  }
-
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-
-  body {
-    background: var(--bg);
-    color: var(--text);
-    font-family: var(--sans);
-    min-height: 100vh;
-    position: relative;
-    overflow-x: hidden;
-  }
-
-  /* Subtle grid background */
-  body::before {
-    content: '';
-    position: fixed;
-    top: 0; left: 0; right: 0; bottom: 0;
-    background-image:
-      linear-gradient(rgba(34,197,94,0.03) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(34,197,94,0.03) 1px, transparent 1px);
-    background-size: 60px 60px;
-    pointer-events: none;
-    z-index: 0;
-  }
-
-  /* Glow orb */
-  body::after {
-    content: '';
-    position: fixed;
-    top: -200px;
-    right: -200px;
-    width: 600px;
-    height: 600px;
-    background: radial-gradient(circle, rgba(34,197,94,0.06) 0%, transparent 70%);
-    pointer-events: none;
-    z-index: 0;
-  }
-
-  .container {
-    max-width: 900px;
-    margin: 0 auto;
-    padding: 48px 24px 80px;
-    position: relative;
-    z-index: 1;
-  }
-
-  /* Header */
-  .header {
-    margin-bottom: 56px;
-    position: relative;
-  }
-
-  .header-top {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    margin-bottom: 16px;
-  }
-
-  .logo {
-    width: 48px;
-    height: 48px;
-    background: var(--green-dim);
-    border: 1.5px solid rgba(34,197,94,0.3);
-    border-radius: 12px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 1.4rem;
-    flex-shrink: 0;
-  }
-
-  .header h1 {
-    font-family: var(--mono);
-    font-size: 2rem;
-    font-weight: 700;
-    letter-spacing: -1px;
-    color: var(--text);
-  }
-
-  .header h1 span {
-    color: var(--green);
-  }
-
-  .header-desc {
-    color: var(--text-dim);
-    font-size: 0.95rem;
-    line-height: 1.6;
-    max-width: 600px;
-  }
-
-  .header-desc a {
-    color: var(--green);
-    text-decoration: none;
-  }
-
-  /* Stats bar */
-  .stats-bar {
-    display: flex;
-    gap: 24px;
-    margin-top: 24px;
-    flex-wrap: wrap;
-  }
-
-  .stat {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
-
-  .stat-icon {
-    width: 32px;
-    height: 32px;
-    border-radius: 8px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 0.85rem;
-  }
-
-  .stat-info {
-    display: flex;
-    flex-direction: column;
-  }
-
-  .stat-value {
-    font-family: var(--mono);
-    font-weight: 700;
-    font-size: 1.1rem;
-    color: var(--text);
-    line-height: 1;
-  }
-
-  .stat-label {
-    font-size: 0.72rem;
-    color: var(--text-dim);
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-  }
-
-  /* Section */
-  .section-header {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    margin-bottom: 20px;
-  }
-
-  .section-header h2 {
-    font-size: 1.15rem;
-    font-weight: 600;
-    color: var(--text);
-  }
-
-  .section-line {
-    flex-grow: 1;
-    height: 1px;
-    background: linear-gradient(90deg, var(--card-border), transparent);
-  }
-
-  .machine-count {
-    font-family: var(--mono);
-    font-size: 0.75rem;
-    color: var(--text-dim);
-    background: var(--card);
-    border: 1px solid var(--card-border);
-    padding: 2px 10px;
-    border-radius: 20px;
-  }
-
-  /* Machine cards */
-  .machines-grid {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-  }
-
-  .machine-card {
-    background: var(--card);
-    border: 1px solid var(--card-border);
-    border-radius: 14px;
-    padding: 20px 24px;
-    display: grid;
-    grid-template-columns: auto 1fr auto;
-    gap: 20px;
-    align-items: center;
-    text-decoration: none;
-    color: var(--text);
-    transition: all 0.25s ease;
-    position: relative;
-    overflow: hidden;
-  }
-
-  .machine-card::before {
-    content: '';
-    position: absolute;
-    left: 0;
-    top: 0;
-    bottom: 0;
-    width: 3px;
-    border-radius: 0 2px 2px 0;
-    transition: opacity 0.25s;
-  }
-
-  .machine-card:hover {
-    background: var(--card-hover);
-    border-color: rgba(255,255,255,0.1);
-    transform: translateY(-2px);
-    box-shadow: 0 8px 32px rgba(0,0,0,0.3);
-  }
-
-  .machine-card.difficulty-easy::before { background: var(--green); }
-  .machine-card.difficulty-medium::before { background: var(--orange); }
-  .machine-card.difficulty-hard::before { background: var(--red); }
-
-  .machine-icon {
-    width: 48px;
-    height: 48px;
-    border-radius: 12px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 1.2rem;
-    flex-shrink: 0;
-  }
-
-  .machine-icon.os-linux { background: rgba(234,179,8,0.1); border: 1px solid rgba(234,179,8,0.2); }
-  .machine-icon.os-windows { background: rgba(59,130,246,0.1); border: 1px solid rgba(59,130,246,0.2); }
-
-  .machine-info {
-    min-width: 0;
-  }
-
-  .machine-name-row {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    margin-bottom: 4px;
-    flex-wrap: wrap;
-  }
-
-  .machine-name {
-    font-weight: 700;
-    font-size: 1.05rem;
-  }
-
-  .diff-badge {
-    font-family: var(--mono);
-    font-size: 0.65rem;
-    font-weight: 600;
-    padding: 2px 8px;
-    border-radius: 6px;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-  }
-
-  .diff-easy { background: rgba(34,197,94,0.12); color: var(--green); border: 1px solid rgba(34,197,94,0.25); }
-  .diff-medium { background: rgba(249,115,22,0.12); color: var(--orange); border: 1px solid rgba(249,115,22,0.25); }
-  .diff-hard { background: rgba(239,68,68,0.12); color: var(--red); border: 1px solid rgba(239,68,68,0.25); }
-
-  .machine-desc {
-    color: var(--text-mid);
-    font-size: 0.85rem;
-    line-height: 1.5;
-  }
-
-  .machine-tags {
-    display: flex;
-    gap: 6px;
-    margin-top: 8px;
-    flex-wrap: wrap;
-  }
-
-  .tag {
-    font-family: var(--mono);
-    font-size: 0.68rem;
-    color: var(--text-dim);
-    background: rgba(255,255,255,0.04);
-    border: 1px solid rgba(255,255,255,0.06);
-    padding: 2px 8px;
-    border-radius: 4px;
-  }
-
-  .machine-arrow {
-    color: var(--text-dim);
-    font-size: 1.2rem;
-    transition: all 0.25s;
-    flex-shrink: 0;
-  }
-
-  .machine-card:hover .machine-arrow {
-    color: var(--green);
-    transform: translateX(4px);
-  }
-
-  /* Empty state for future sections */
-  .coming-soon {
-    text-align: center;
-    padding: 40px 20px;
-    color: var(--text-dim);
-    font-size: 0.9rem;
-    border: 1px dashed var(--card-border);
-    border-radius: 14px;
-    margin-top: 12px;
-  }
-
-  .coming-soon .emoji {
-    font-size: 1.8rem;
-    margin-bottom: 8px;
-    display: block;
-  }
-
-  /* Terminal prompt footer */
-  .footer {
-    margin-top: 64px;
-    padding-top: 24px;
-    border-top: 1px solid var(--card-border);
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
-
-  .prompt {
-    font-family: var(--mono);
-    font-size: 0.82rem;
-    color: var(--text-dim);
-  }
-
-  .prompt span { color: var(--green); }
-
-  .cursor-blink {
-    display: inline-block;
-    width: 8px;
-    height: 16px;
-    background: var(--green);
-    animation: blink 1s step-end infinite;
-    vertical-align: middle;
-    margin-left: 2px;
-  }
-
-  @keyframes blink {
-    50% { opacity: 0; }
-  }
-
-  @media (max-width: 640px) {
-    .machine-card {
-      grid-template-columns: auto 1fr;
-      gap: 14px;
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>pwned-notes — HTB Writeups</title>
+  <link
+    href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap"
+    rel="stylesheet">
+  <style>
+    :root {
+      --bg: #060a10;
+      --bg2: #0c1018;
+      --card: #111827;
+      --card-hover: #162032;
+      --card-border: #1e293b;
+      --green: #22c55e;
+      --green-dim: rgba(34, 197, 94, 0.12);
+      --red: #ef4444;
+      --red-dim: rgba(239, 68, 68, 0.1);
+      --blue: #3b82f6;
+      --yellow: #eab308;
+      --orange: #f97316;
+      --purple: #a855f7;
+      --cyan: #06b6d4;
+      --text: #e2e8f0;
+      --text-dim: #64748b;
+      --text-mid: #94a3b8;
+      --mono: 'JetBrains Mono', monospace;
+      --sans: 'Space Grotesk', sans-serif;
     }
-    .machine-arrow { display: none; }
-    .stats-bar { gap: 16px; }
-    .header h1 { font-size: 1.5rem; }
-  }
-</style>
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--sans);
+      min-height: 100vh;
+      position: relative;
+      overflow-x: hidden;
+    }
+
+    /* Subtle grid background */
+    body::before {
+      content: '';
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-image:
+        linear-gradient(rgba(34, 197, 94, 0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(34, 197, 94, 0.03) 1px, transparent 1px);
+      background-size: 60px 60px;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* Glow orb */
+    body::after {
+      content: '';
+      position: fixed;
+      top: -200px;
+      right: -200px;
+      width: 600px;
+      height: 600px;
+      background: radial-gradient(circle, rgba(34, 197, 94, 0.06) 0%, transparent 70%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 48px 24px 80px;
+      position: relative;
+      z-index: 1;
+    }
+
+    /* Header */
+    .header {
+      margin-bottom: 56px;
+      position: relative;
+    }
+
+    .header-top {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .logo {
+      width: 48px;
+      height: 48px;
+      background: var(--green-dim);
+      border: 1.5px solid rgba(34, 197, 94, 0.3);
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.4rem;
+      flex-shrink: 0;
+    }
+
+    .header h1 {
+      font-family: var(--mono);
+      font-size: 2rem;
+      font-weight: 700;
+      letter-spacing: -1px;
+      color: var(--text);
+    }
+
+    .header h1 span {
+      color: var(--green);
+    }
+
+    .header-desc {
+      color: var(--text-dim);
+      font-size: 0.95rem;
+      line-height: 1.6;
+      max-width: 600px;
+    }
+
+    .header-desc a {
+      color: var(--green);
+      text-decoration: none;
+    }
+
+    /* Stats bar */
+    .stats-bar {
+      display: flex;
+      gap: 24px;
+      margin-top: 24px;
+      flex-wrap: wrap;
+    }
+
+    .stat {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .stat-icon {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.85rem;
+    }
+
+    .stat-info {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .stat-value {
+      font-family: var(--mono);
+      font-weight: 700;
+      font-size: 1.1rem;
+      color: var(--text);
+      line-height: 1;
+    }
+
+    .stat-label {
+      font-size: 0.72rem;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    /* Section */
+    .section-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+
+    .section-header h2 {
+      font-size: 1.15rem;
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    .section-line {
+      flex-grow: 1;
+      height: 1px;
+      background: linear-gradient(90deg, var(--card-border), transparent);
+    }
+
+    .machine-count {
+      font-family: var(--mono);
+      font-size: 0.75rem;
+      color: var(--text-dim);
+      background: var(--card);
+      border: 1px solid var(--card-border);
+      padding: 2px 10px;
+      border-radius: 20px;
+    }
+
+    /* Machine cards */
+    .machines-grid {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .machine-card {
+      background: var(--card);
+      border: 1px solid var(--card-border);
+      border-radius: 14px;
+      padding: 20px 24px;
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      gap: 20px;
+      align-items: center;
+      text-decoration: none;
+      color: var(--text);
+      transition: all 0.25s ease;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .machine-card::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      width: 3px;
+      border-radius: 0 2px 2px 0;
+      transition: opacity 0.25s;
+    }
+
+    .machine-card:hover {
+      background: var(--card-hover);
+      border-color: rgba(255, 255, 255, 0.1);
+      transform: translateY(-2px);
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    }
+
+    .machine-card.difficulty-easy::before {
+      background: var(--green);
+    }
+
+    .machine-card.difficulty-medium::before {
+      background: var(--orange);
+    }
+
+    .machine-card.difficulty-hard::before {
+      background: var(--red);
+    }
+
+    .machine-icon {
+      width: 48px;
+      height: 48px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.2rem;
+      flex-shrink: 0;
+    }
+
+    .machine-icon.os-linux {
+      background: rgba(234, 179, 8, 0.1);
+      border: 1px solid rgba(234, 179, 8, 0.2);
+    }
+
+    .machine-icon.os-windows {
+      background: rgba(59, 130, 246, 0.1);
+      border: 1px solid rgba(59, 130, 246, 0.2);
+    }
+
+    .machine-info {
+      min-width: 0;
+    }
+
+    .machine-name-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 4px;
+      flex-wrap: wrap;
+    }
+
+    .machine-name {
+      font-weight: 700;
+      font-size: 1.05rem;
+    }
+
+    .diff-badge {
+      font-family: var(--mono);
+      font-size: 0.65rem;
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .diff-easy {
+      background: rgba(34, 197, 94, 0.12);
+      color: var(--green);
+      border: 1px solid rgba(34, 197, 94, 0.25);
+    }
+
+    .diff-medium {
+      background: rgba(249, 115, 22, 0.12);
+      color: var(--orange);
+      border: 1px solid rgba(249, 115, 22, 0.25);
+    }
+
+    .diff-hard {
+      background: rgba(239, 68, 68, 0.12);
+      color: var(--red);
+      border: 1px solid rgba(239, 68, 68, 0.25);
+    }
+
+    .machine-desc {
+      color: var(--text-mid);
+      font-size: 0.85rem;
+      line-height: 1.5;
+    }
+
+    .machine-tags {
+      display: flex;
+      gap: 6px;
+      margin-top: 8px;
+      flex-wrap: wrap;
+    }
+
+    .tag {
+      font-family: var(--mono);
+      font-size: 0.68rem;
+      color: var(--text-dim);
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      padding: 2px 8px;
+      border-radius: 4px;
+    }
+
+    .machine-arrow {
+      color: var(--text-dim);
+      font-size: 1.2rem;
+      transition: all 0.25s;
+      flex-shrink: 0;
+    }
+
+    .machine-card:hover .machine-arrow {
+      color: var(--green);
+      transform: translateX(4px);
+    }
+
+    /* Empty state for future sections */
+    .coming-soon {
+      text-align: center;
+      padding: 40px 20px;
+      color: var(--text-dim);
+      font-size: 0.9rem;
+      border: 1px dashed var(--card-border);
+      border-radius: 14px;
+      margin-top: 12px;
+    }
+
+    .coming-soon .emoji {
+      font-size: 1.8rem;
+      margin-bottom: 8px;
+      display: block;
+    }
+
+    /* Terminal prompt footer */
+    .footer {
+      margin-top: 64px;
+      padding-top: 24px;
+      border-top: 1px solid var(--card-border);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .prompt {
+      font-family: var(--mono);
+      font-size: 0.82rem;
+      color: var(--text-dim);
+    }
+
+    .prompt span {
+      color: var(--green);
+    }
+
+    .cursor-blink {
+      display: inline-block;
+      width: 8px;
+      height: 16px;
+      background: var(--green);
+      animation: blink 1s step-end infinite;
+      vertical-align: middle;
+      margin-left: 2px;
+    }
+
+    @keyframes blink {
+      50% {
+        opacity: 0;
+      }
+    }
+
+    @media (max-width: 640px) {
+      .machine-card {
+        grid-template-columns: auto 1fr;
+        gap: 14px;
+      }
+
+      .machine-arrow {
+        display: none;
+      }
+
+      .stats-bar {
+        gap: 16px;
+      }
+
+      .header h1 {
+        font-size: 1.5rem;
+      }
+    }
+  </style>
 </head>
+
 <body>
 
-<div class="container">
+  <div class="container">
 
-  <!-- Header -->
-  <div class="header">
-    <div class="header-top">
-      <div class="logo">🏴</div>
-      <h1><span>pwned</span>-notes</h1>
+    <!-- Header -->
+    <div class="header">
+      <div class="header-top">
+        <div class="logo">🏴</div>
+        <h1><span>pwned</span>-notes</h1>
+      </div>
+      <p class="header-desc">
+        Apuntes y diagramas de máquinas de <a href="https://www.hackthebox.com" target="_blank">Hack The Box</a>.
+        Cada writeup incluye el flujo de ataque completo con gráficos paso a paso.
+      </p>
+
+      <div class="stats-bar">
+        <div class="stat">
+          <div class="stat-icon" style="background: var(--green-dim); border: 1px solid rgba(34,197,94,0.2);">🏴</div>
+          <div class="stat-info">
+            <div class="stat-value">1</div>
+            <div class="stat-label">Máquinas</div>
+          </div>
+        </div>
+        <div class="stat">
+          <div class="stat-icon" style="background: rgba(234,179,8,0.1); border: 1px solid rgba(234,179,8,0.2);">🐧
+          </div>
+          <div class="stat-info">
+            <div class="stat-value">1</div>
+            <div class="stat-label">Linux</div>
+          </div>
+        </div>
+        <div class="stat">
+          <div class="stat-icon" style="background: rgba(59,130,246,0.1); border: 1px solid rgba(59,130,246,0.2);">🪟
+          </div>
+          <div class="stat-info">
+            <div class="stat-value">0</div>
+            <div class="stat-label">Windows</div>
+          </div>
+        </div>
+      </div>
     </div>
-    <p class="header-desc">
-      Apuntes y diagramas de máquinas de <a href="https://www.hackthebox.com" target="_blank">Hack The Box</a>. 
-      Cada writeup incluye el flujo de ataque completo con gráficos paso a paso.
-    </p>
 
-    <div class="stats-bar">
-      <div class="stat">
-        <div class="stat-icon" style="background: var(--green-dim); border: 1px solid rgba(34,197,94,0.2);">🏴</div>
-        <div class="stat-info">
-          <div class="stat-value">1</div>
-          <div class="stat-label">Máquinas</div>
-        </div>
-      </div>
-      <div class="stat">
-        <div class="stat-icon" style="background: rgba(234,179,8,0.1); border: 1px solid rgba(234,179,8,0.2);">🐧</div>
-        <div class="stat-info">
-          <div class="stat-value">1</div>
-          <div class="stat-label">Linux</div>
-        </div>
-      </div>
-      <div class="stat">
-        <div class="stat-icon" style="background: rgba(59,130,246,0.1); border: 1px solid rgba(59,130,246,0.2);">🪟</div>
-        <div class="stat-info">
-          <div class="stat-value">0</div>
-          <div class="stat-label">Windows</div>
-        </div>
-      </div>
+    <!-- Completed Machines -->
+    <div class="section-header">
+      <h2>Máquinas Completadas</h2>
+      <div class="section-line"></div>
+      <div class="machine-count">1 pwned</div>
     </div>
-  </div>
 
-  <!-- Completed Machines -->
-  <div class="section-header">
-    <h2>Máquinas Completadas</h2>
-    <div class="section-line"></div>
-    <div class="machine-count">1 pwned</div>
-  </div>
+    <div class="machines-grid">
 
-  <div class="machines-grid">
-
-    <!-- THREE -->
-    <a href="three.html" class="machine-card difficulty-easy">
-      <div class="machine-icon os-linux">🐧</div>
-      <div class="machine-info">
-        <div class="machine-name-row">
-          <span class="machine-name">Three</span>
-          <span class="diff-badge diff-easy">Very Easy</span>
+      <!-- THREE -->
+      <a href="three.html" class="machine-card difficulty-easy">
+        <div class="machine-icon os-linux">🐧</div>
+        <div class="machine-info">
+          <div class="machine-name-row">
+            <span class="machine-name">Three</span>
+            <span class="diff-badge diff-easy">Very Easy</span>
+          </div>
+          <div class="machine-desc">Explotación de bucket S3 mal configurado + reverse shell PHP vía webroot expuesto.
+          </div>
+          <div class="machine-tags">
+            <span class="tag">AWS S3</span>
+            <span class="tag">PHP</span>
+            <span class="tag">Reverse Shell</span>
+            <span class="tag">awscli</span>
+            <span class="tag">LocalStack</span>
+          </div>
         </div>
-        <div class="machine-desc">Explotación de bucket S3 mal configurado + reverse shell PHP vía webroot expuesto.</div>
-        <div class="machine-tags">
-          <span class="tag">AWS S3</span>
-          <span class="tag">PHP</span>
-          <span class="tag">Reverse Shell</span>
-          <span class="tag">awscli</span>
-          <span class="tag">LocalStack</span>
+        <div class="machine-arrow">→</div>
+      </a>
+      <a href="funnel.html" class="machine-card difficulty-easy">
+        <div class="machine-icon os-linux">🐧</div>
+        <div class="machine-info">
+          <div class="machine-name-row">
+            <span class="machine-name">Funnel</span>
+            <span class="diff-badge diff-easy">Very Easy</span>
+          </div>
+          <div class="machine-desc">FTP anónimo, password spraying y SSH tunneling para acceder a PostgreSQL interno.
+          </div>
+          <div class="machine-tags">
+            <span class="tag">FTP</span>
+            <span class="tag">Password Spraying</span>
+            <span class="tag">SSH Tunneling</span>
+            <span class="tag">PostgreSQL</span>
+          </div>
         </div>
-      </div>
-      <div class="machine-arrow">→</div>
-    </a>
-
-    <!--
+        <div class="machine-arrow">→</div>
+      </a>
+      <!--
     =============================================
     PLANTILLA — Copia esto para añadir máquinas:
     =============================================
@@ -479,27 +552,28 @@
     =============================================
     -->
 
-  </div>
-
-  <!-- Coming soon -->
-  <div style="margin-top: 48px;">
-    <div class="section-header">
-      <h2>En progreso</h2>
-      <div class="section-line"></div>
     </div>
-    <div class="coming-soon">
-      <span class="emoji">⚡</span>
-      Próximas máquinas aparecerán aquí...
+
+    <!-- Coming soon -->
+    <div style="margin-top: 48px;">
+      <div class="section-header">
+        <h2>En progreso</h2>
+        <div class="section-line"></div>
+      </div>
+      <div class="coming-soon">
+        <span class="emoji">⚡</span>
+        Próximas máquinas aparecerán aquí...
+      </div>
     </div>
-  </div>
 
-  <!-- Footer -->
-  <div class="footer">
-    <span class="prompt"><span>root@pwned-notes</span>:~$ hack_the_planet</span>
-    <span class="cursor-blink"></span>
-  </div>
+    <!-- Footer -->
+    <div class="footer">
+      <span class="prompt"><span>root@pwned-notes</span>:~$ hack_the_planet</span>
+      <span class="cursor-blink"></span>
+    </div>
 
-</div>
+  </div>
 
 </body>
+
 </html>
