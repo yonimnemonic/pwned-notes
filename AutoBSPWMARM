@@ -1,0 +1,402 @@
+#!/bin/bash
+# ============================================================
+#  AutoBSPWM ARM v2 - Compatible con Apple Silicon (aarch64)
+#  Autor: Claude para Agustín
+#  Probado en: Kali Linux ARM64 (VMware Fusion)
+# ============================================================
+
+set -e
+
+GREEN="\e[32m"; RED="\e[31m"; YELLOW="\e[33m"; CYAN="\e[36m"; RESET="\e[0m"
+ok()   { echo -e "${GREEN}[✔]${RESET} $1"; }
+err()  { echo -e "${RED}[✘]${RESET} $1"; }
+info() { echo -e "${CYAN}[*]${RESET} $1"; }
+warn() { echo -e "${YELLOW}[!]${RESET} $1"; }
+
+if [ "$EUID" -eq 0 ]; then err "No ejecutes como root."; exit 1; fi
+
+echo ""
+echo -e "${CYAN}╔══════════════════════════════════════════╗${RESET}"
+echo -e "${CYAN}║     AutoBSPWM ARM v2 - Kali Linux        ║${RESET}"
+echo -e "${CYAN}║     Optimizado para Apple Silicon        ║${RESET}"
+echo -e "${CYAN}╚══════════════════════════════════════════╝${RESET}"
+echo ""
+
+read -p "Introduce tu nickname (para el wallpaper): " NICKNAME
+NICKNAME=${NICKNAME:-$USER}
+
+info "Necesito tu contraseña para instalar paquetes..."
+sudo -v
+while true; do sudo -n true; sleep 60; kill -0 "$$" || exit; done 2>/dev/null &
+
+# 1. ACTUALIZAR
+info "Actualizando sistema..."
+sudo apt update -y && sudo apt upgrade -y
+ok "Sistema actualizado"
+
+# 2. INSTALAR PAQUETES ARM NATIVOS
+info "Instalando paquetes ARM nativos..."
+sudo apt install -y \
+    bspwm sxhkd kitty picom polybar rofi jgmenu \
+    lsd bat fzf zsh tmux \
+    fonts-powerline fonts-font-awesome \
+    xclip xdotool dunst feh ranger \
+    xsettingsd jq curl git wget unzip \
+    open-vm-tools open-vm-tools-desktop \
+    imagemagick 2>/dev/null || true
+ok "Paquetes instalados"
+
+# 3. NERD FONTS (instalación manual ARM)
+info "Instalando Hack Nerd Font..."
+FONT_DIR="$HOME/.local/share/fonts"
+mkdir -p "$FONT_DIR/Hack"
+wget -q "https://github.com/ryanoasis/nerd-fonts/releases/download/v3.1.1/Hack.zip" -O /tmp/HackNF.zip
+unzip -q -o /tmp/HackNF.zip -d "$FONT_DIR/Hack"
+fc-cache -fv "$FONT_DIR" > /dev/null 2>&1
+rm /tmp/HackNF.zip
+ok "Fuentes instaladas"
+
+# 4. OH-MY-ZSH
+info "Instalando Oh-My-Zsh..."
+if [ -d "$HOME/.oh-my-zsh" ]; then
+    rm -rf "$HOME/.oh-my-zsh"
+fi
+sh -c "$(curl -fsSL https://install.ohmyz.sh)" "" --unattended
+ok "Oh-My-Zsh instalado"
+
+# 5. POWERLEVEL10K
+info "Instalando Powerlevel10k..."
+git clone --depth=1 https://github.com/romkatv/powerlevel10k.git \
+    "${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/themes/powerlevel10k"
+ok "Powerlevel10k instalado"
+
+# 6. PLUGINS ZSH
+info "Instalando plugins zsh..."
+ZSH_CUSTOM="${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}"
+git clone https://github.com/zsh-users/zsh-autosuggestions \
+    "$ZSH_CUSTOM/plugins/zsh-autosuggestions"
+git clone https://github.com/zsh-users/zsh-syntax-highlighting \
+    "$ZSH_CUSTOM/plugins/zsh-syntax-highlighting"
+ok "Plugins instalados"
+
+# 7. CONFIGURAR ZSH
+info "Configurando zsh..."
+cat > "$HOME/.zshrc" << 'ZSHRC'
+if [[ -r "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh" ]]; then
+  source "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh"
+fi
+export ZSH="$HOME/.oh-my-zsh"
+ZSH_THEME="powerlevel10k/powerlevel10k"
+plugins=(git zsh-autosuggestions zsh-syntax-highlighting history sudo)
+source $ZSH/oh-my-zsh.sh
+alias ll='lsd -lh --group-dirs=first'
+alias la='lsd -a --group-dirs=first'
+alias l='lsd --group-dirs=first'
+alias ls='lsd --group-dirs=first'
+alias cat='bat --style=plain'
+alias catn='bat --style=plain --paging=never'
+alias grep='grep --color=auto'
+alias settarget='function _st(){ echo $1 > ~/.config/target; echo "Target: $1"; }; _st'
+alias cleartarget='rm -f ~/.config/target && echo "Target cleared"'
+[[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh
+ZSHRC
+ok "zsh configurado"
+
+# 8. BSPWM CONFIG
+info "Configurando BSPWM..."
+mkdir -p "$HOME/.config/bspwm"
+cat > "$HOME/.config/bspwm/bspwmrc" << 'BSPWMRC'
+#!/bin/bash
+pgrep -x sxhkd > /dev/null || sxhkd &
+bspc monitor -d 1 2 3 4 5 6 7 8 9
+bspc config border_width         2
+bspc config window_gap           8
+bspc config split_ratio          0.52
+bspc config borderless_monocle   true
+bspc config gapless_monocle      true
+bspc config normal_border_color   "#44475a"
+bspc config active_border_color   "#44475a"
+bspc config focused_border_color  "#bd93f9"
+bspc config presel_feedback_color "#6272a4"
+bspc rule -a Gimp state=floating follow=on
+bspc rule -a Firefox state=tiled
+feh --bg-fill ~/.config/bspwm/wallpaper.jpg 2>/dev/null &
+picom --backend xrender -b 2>/dev/null &
+bash ~/.config/polybar/launch.sh &
+setxkbmap es &
+BSPWMRC
+chmod +x "$HOME/.config/bspwm/bspwmrc"
+ok "BSPWM configurado"
+
+# 9. SXHKD CONFIG
+info "Configurando atajos de teclado..."
+mkdir -p "$HOME/.config/sxhkd"
+cat > "$HOME/.config/sxhkd/sxhkdrc" << 'SXHKDRC'
+# Terminal - Ctrl+Alt+Enter (compatible Mac)
+ctrl + alt + Return
+    kitty
+
+# Firefox
+ctrl + alt + f
+    firefox
+
+# Cerrar ventana
+super + w
+    bspc node -c
+
+# Flotante
+super + s
+    bspc node -t "~floating"
+
+# Pantalla completa
+super + f
+    bspc node -t "~fullscreen"
+
+# Recargar sxhkd
+super + Escape
+    pkill -USR1 -x sxhkd
+
+# Reiniciar bspwm
+super + alt + r
+    bspc wm -r
+
+# Salir
+super + alt + q
+    bspc quit
+
+# Lanzador
+super + d
+    rofi -show drun
+
+# Menu contextual
+~button3
+    jgmenu_run
+
+# Fix teclado bloqueado
+ctrl + alt + k
+    setxkbmap es && pkill -USR1 -x sxhkd
+
+# Navegación entre ventanas
+super + {Left,Down,Up,Right}
+    bspc node -f {west,south,north,east}
+
+# Mover ventana
+super + shift + {Left,Down,Up,Right}
+    bspc node -s {west,south,north,east}
+
+# Cambiar escritorio
+super + {1-9,0}
+    bspc desktop -f '^{1-9,10}'
+
+# Mover ventana a escritorio
+super + shift + {1-9,0}
+    bspc node -d '^{1-9,10}'
+
+# Redimensionar
+super + alt + {Left,Down,Up,Right}
+    bspc node -z {left -20 0,bottom 0 20,top 0 -20,right 20 0}
+SXHKDRC
+ok "sxhkd configurado"
+
+# 10. POLYBAR SCRIPTS
+info "Configurando polybar scripts..."
+mkdir -p "$HOME/.config/polybar/scripts"
+
+cat > "$HOME/.config/polybar/scripts/get_local_ip.sh" << 'SCRIPT'
+#!/bin/bash
+IP=$(ip -4 addr show | grep -oP '(?<=inet\s)\d+(\.\d+){3}' | grep -v '127.0.0.1' | head -1)
+echo "${IP:-No IP}"
+SCRIPT
+chmod +x "$HOME/.config/polybar/scripts/get_local_ip.sh"
+
+cat > "$HOME/.config/polybar/scripts/get_vpn_ip.sh" << 'SCRIPT'
+#!/bin/bash
+IP=$(ip -4 addr show tun0 2>/dev/null | grep -oP '(?<=inet\s)\d+(\.\d+){3}')
+echo "${IP:-Disconnected}"
+SCRIPT
+chmod +x "$HOME/.config/polybar/scripts/get_vpn_ip.sh"
+
+cat > "$HOME/.config/polybar/scripts/get_target.sh" << 'SCRIPT'
+#!/bin/bash
+TARGET=$(cat ~/.config/target 2>/dev/null)
+echo "${TARGET:-No target}"
+SCRIPT
+chmod +x "$HOME/.config/polybar/scripts/get_target.sh"
+
+# Script de lanzamiento polybar
+cat > "$HOME/.config/polybar/launch.sh" << 'LAUNCH'
+#!/bin/bash
+pkill polybar 2>/dev/null
+sleep 0.5
+polybar htb 2>/tmp/polybar.log &
+LAUNCH
+chmod +x "$HOME/.config/polybar/launch.sh"
+
+# Config polybar
+cat > "$HOME/.config/polybar/config.ini" << 'POLYBAR'
+[colors]
+background = #1e1f29
+foreground = #f8f8f2
+primary = #bd93f9
+green = #50fa7b
+cyan = #8be9fd
+orange = #ffb86c
+pink = #ff79c6
+alert = #ff5555
+
+[bar/htb]
+width = 100%
+height = 28
+background = ${colors.background}
+foreground = ${colors.foreground}
+font-0 = "Hack Nerd Font:size=10;2"
+font-1 = "Font Awesome 6 Free:style=Solid:size=10;2"
+font-2 = "DejaVu Sans:size=10;2"
+modules-left = bspwm
+modules-center = date
+modules-right = local-ip vpn-ip target
+padding-left = 1
+padding-right = 1
+module-margin = 1
+border-bottom-size = 2
+border-bottom-color = ${colors.primary}
+
+[module/bspwm]
+type = internal/bspwm
+label-focused = %index%
+label-focused-background = ${colors.primary}
+label-focused-foreground = ${colors.background}
+label-focused-padding = 1
+label-occupied = %index%
+label-occupied-padding = 1
+label-urgent = %index%!
+label-urgent-background = ${colors.alert}
+label-urgent-padding = 1
+label-empty = %index%
+label-empty-foreground = #44475a
+label-empty-padding = 1
+
+[module/date]
+type = internal/date
+interval = 1
+date = %d/%m/%Y
+time = %H:%M:%S
+label = "%date%  %time%"
+label-foreground = ${colors.cyan}
+
+[module/local-ip]
+type = custom/script
+exec = ~/.config/polybar/scripts/get_local_ip.sh
+interval = 10
+label = "IP: %output%"
+label-foreground = ${colors.green}
+click-left = ~/.config/polybar/scripts/get_local_ip.sh | xclip -selection clipboard
+
+[module/vpn-ip]
+type = custom/script
+exec = ~/.config/polybar/scripts/get_vpn_ip.sh
+interval = 5
+label = "VPN: %output%"
+label-foreground = ${colors.orange}
+click-left = ~/.config/polybar/scripts/get_vpn_ip.sh | xclip -selection clipboard
+
+[module/target]
+type = custom/script
+exec = ~/.config/polybar/scripts/get_target.sh
+interval = 2
+label = "Target: %output%"
+label-foreground = ${colors.pink}
+click-left = cat ~/.config/target 2>/dev/null | xclip -selection clipboard
+POLYBAR
+ok "polybar configurado"
+
+# 11. KITTY
+info "Configurando kitty..."
+mkdir -p "$HOME/.config/kitty"
+cat > "$HOME/.config/kitty/kitty.conf" << 'KITTY'
+font_family      Hack Nerd Font
+font_size        11.0
+foreground #f8f8f2
+background #1e1f29
+selection_foreground #ffffff
+selection_background #44475a
+color0  #21222c
+color1  #ff5555
+color2  #50fa7b
+color3  #f1fa8c
+color4  #bd93f9
+color5  #ff79c6
+color6  #8be9fd
+color7  #f8f8f2
+color8  #6272a4
+color9  #ff6e6e
+color10 #69ff94
+color11 #ffffa5
+color12 #d6acff
+color13 #ff92df
+color14 #a4ffff
+color15 #ffffff
+background_opacity 0.95
+cursor_shape beam
+window_padding_width 8
+KITTY
+ok "kitty configurado"
+
+# 12. WALLPAPER
+info "Configurando wallpaper..."
+if command -v convert &>/dev/null; then
+    convert -size 1920x1080 gradient:"#1e1f29-#282a36" \
+        -font "DejaVu-Sans-Bold" -pointsize 80 \
+        -fill "#bd93f9" -gravity Center \
+        -annotate 0 "@${NICKNAME}" \
+        "$HOME/.config/bspwm/wallpaper.jpg" 2>/dev/null && \
+        ok "Wallpaper creado con @${NICKNAME}" || \
+        warn "No se pudo crear el wallpaper"
+fi
+
+# 13. XPROFILE
+info "Configurando xprofile..."
+cat > "$HOME/.xprofile" << 'XPROFILE'
+setxkbmap es
+xrandr --newmode "1920x1080_60" 173.00 1920 2048 2248 2576 1080 1083 1088 1120 -hsync +vsync 2>/dev/null
+xrandr --addmode Virtual-1 "1920x1080_60" 2>/dev/null
+xrandr --output Virtual-1 --mode "1920x1080_60" 2>/dev/null || true
+XPROFILE
+ok "xprofile configurado"
+
+# 14. CAMBIAR SHELL
+info "Cambiando shell a zsh..."
+sudo chsh -s /bin/zsh "$USER"
+ok "Shell cambiado a zsh"
+
+# 15. SESIÓN BSPWM
+sudo bash -c 'cat > /usr/share/xsessions/bspwm.desktop << EOF
+[Desktop Entry]
+Name=BSPWM
+Comment=Binary space partitioning window manager
+Exec=bspwm
+Type=Application
+EOF'
+ok "Sesión BSPWM registrada"
+
+echo ""
+echo -e "${GREEN}╔══════════════════════════════════════════╗${RESET}"
+echo -e "${GREEN}║     ¡Instalación completada!             ║${RESET}"
+echo -e "${GREEN}╚══════════════════════════════════════════╝${RESET}"
+echo ""
+echo -e "${CYAN}Atajos principales:${RESET}"
+echo -e "  ${YELLOW}Ctrl + Alt + Enter${RESET} → Terminal (kitty)"
+echo -e "  ${YELLOW}Ctrl + Alt + F${RESET}     → Firefox"
+echo -e "  ${YELLOW}Super + D${RESET}           → Lanzador (rofi)"
+echo -e "  ${YELLOW}Super + W${RESET}           → Cerrar ventana"
+echo -e "  ${YELLOW}Super + 1-9${RESET}         → Cambiar escritorio"
+echo -e "  ${YELLOW}Ctrl + Alt + K${RESET}      → Fix teclado bloqueado"
+echo ""
+echo -e "${CYAN}Comandos HTB:${RESET}"
+echo -e "  ${YELLOW}settarget 10.10.10.X${RESET}  → Fijar IP objetivo"
+echo -e "  ${YELLOW}cleartarget${RESET}           → Limpiar objetivo"
+echo ""
+warn "Reinicia y selecciona BSPWM en el login."
+echo ""
+read -p "¿Reiniciar ahora? (s/n): " REBOOT
+[[ "$REBOOT" == "s" ]] && sudo reboot
