@@ -1,0 +1,10 @@
+Atajos bash
+#########################################################################
+
+Ctrl + U     → Borra desde el cursor hacia el PRINCIPIO de la línea
+Ctrl + K     → Borra desde el cursor hacia el FINAL de la línea
+Ctrl + W     → Borra la palabra anterior al cursor
+Ctrl + A     → Mueve el cursor al principio de la línea
+Ctrl + E     → Mueve el cursor al final de la línea
+
+##########################################################################
