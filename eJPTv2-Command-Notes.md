@@ -131,6 +131,7 @@ set USER_FILE /usr/share/metasploit-framework/data/wordlists/common_users.txt
 set PASS_FILE /usr/share/metasploit-framework/data/wordlists/unix_passwords.txt
 run
 ```
+→ para pasarte la info haz un get nombre del fichero y lo tienes en tu raiz
 → Si login anónimo o archivos interesantes: guarda en `loot/`. Anota versión para **FASE 4**.
 
 ### 3.2 SSH (22)
