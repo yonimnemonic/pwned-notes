@@ -117,6 +117,8 @@ wget -r ftp://anonymous:anonymous@$IP/         # si hay acceso anónimo
 
 **Con Metasploit:**
 ```
+# truco: search type:auxiliary name:ftp
+# truco: setg IP A ATACAR -> asigna la IP de forma global asi no hay que volver a ponerla.
 use auxiliary/scanner/ftp/ftp_version          # banner / versión del servidor
 set RHOSTS $IP
 run
