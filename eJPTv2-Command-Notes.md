@@ -114,6 +114,23 @@ nmap --script ftp-anon,ftp-syst -p21 $IP
 ftp $IP                                        # probar anonymous:anonymous
 wget -r ftp://anonymous:anonymous@$IP/         # si hay acceso anónimo
 ```
+
+**Con Metasploit:**
+```
+use auxiliary/scanner/ftp/ftp_version          # banner / versión del servidor
+set RHOSTS $IP
+run
+
+use auxiliary/scanner/ftp/anonymous            # comprobar login anónimo
+set RHOSTS $IP
+run
+
+use auxiliary/scanner/ftp/ftp_login            # fuerza bruta de credenciales
+set RHOSTS $IP
+set USER_FILE users.txt
+set PASS_FILE pass.txt
+run
+```
 → Si login anónimo o archivos interesantes: guarda en `loot/`. Anota versión para **FASE 4**.
 
 ### 3.2 SSH (22)
@@ -121,6 +138,7 @@ wget -r ftp://anonymous:anonymous@$IP/         # si hay acceso anónimo
 ```bash
 nmap --script ssh2-enum-algos,ssh-auth-methods -p22 $IP
 ```
+Metasploit (alt): `auxiliary/scanner/ssh/ssh_version` · `auxiliary/scanner/ssh/ssh_login` (con `USER_FILE`/`PASS_FILE`)
 → Rara vez explotable directo; guárdalo para probar credenciales encontradas más tarde.
 
 ### 3.3 SMTP (25)
@@ -129,6 +147,7 @@ nmap --script ssh2-enum-algos,ssh-auth-methods -p22 $IP
 nmap --script smtp-commands,smtp-enum-users -p25 $IP
 smtp-user-enum -M VRFY -U /usr/share/seclists/Usernames/top-usernames-shortlist.txt -t $IP
 ```
+Metasploit (alt): `auxiliary/scanner/smtp/smtp_version` · `auxiliary/scanner/smtp/smtp_enum`
 → Usuarios válidos = insumo para fuerza bruta (FASE 5).
 
 ### 3.4 DNS (53)
@@ -150,6 +169,7 @@ gobuster dir -u $URL -w /usr/share/wordlists/dirb/common.txt -x php,html,txt
 feroxbuster -u $URL -w /usr/share/seclists/Discovery/Web-Content/directory-list-2.3-medium.txt
 ffuf -u $URL/FUZZ -w /usr/share/seclists/Discovery/Web-Content/common.txt
 ```
+Metasploit (alt): `auxiliary/scanner/http/http_version` · `auxiliary/scanner/http/dir_scanner` · `auxiliary/scanner/http/robots_txt`
 → Panel de login, CMS o versión concreta: apunta a **FASE 4** (searchsploit) y a **FASE 10 (web)** si hay parámetros.
 
 ### 3.6 SMB / NetBIOS (139/445) — el más rentable del examen
@@ -162,6 +182,7 @@ smbclient //$IP/SHARE -N                        # conectar sin credenciales
 smbmap -H $IP                                   # permisos de shares
 rpcclient -U "" -N $IP                          # enumdomusers / queryuser
 ```
+Metasploit (alt): `auxiliary/scanner/smb/smb_version` · `auxiliary/scanner/smb/smb_enumshares` · `auxiliary/scanner/smb/smb_enumusers` · `auxiliary/scanner/smb/smb_login`
 → `smb-vuln-ms17-010` positivo = EternalBlue (FASE 5). Shares legibles = loot. Usuarios = fuerza bruta.
 
 ### 3.7 SNMP (161/udp)
@@ -171,6 +192,7 @@ onesixtyone -c /usr/share/seclists/Discovery/SNMP/common-snmp-community-strings.
 snmpwalk -v2c -c public $IP                      # volcado completo
 snmp-check $IP -c public
 ```
+Metasploit (alt): `auxiliary/scanner/snmp/snmp_enum` · `auxiliary/scanner/snmp/snmp_login` (prueba community strings)
 → Community `public`/`private` suele filtrar usuarios, procesos y puertos internos.
 
 ### 3.8 MySQL (3306) / MSSQL (1433)
@@ -179,6 +201,7 @@ snmp-check $IP -c public
 nmap --script mysql-*,ms-sql-info,ms-sql-empty-password -p3306,1433 $IP
 mysql -h $IP -u root -p
 ```
+Metasploit (alt): `auxiliary/scanner/mysql/mysql_login` · `auxiliary/scanner/mssql/mssql_login` · `auxiliary/admin/mssql/mssql_enum`
 
 ### 3.9 NFS (2049)
 
